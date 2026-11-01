@@ -69,13 +69,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Yoonseul_Launcher-2.6.4
-          path: |
-            dist/Yoonseul_Launcher.exe
-            dist/launcher_config.json
+          path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Package release ZIP
-        shell: pwsh
-        run: Compress-Archive -Path dist/Yoonseul_Launcher.exe,dist/launcher_config.json -DestinationPath Yoonseul_Launcher-2.6.4.zip
       - name: Publish 2.6.4 release
         shell: pwsh
         env:
@@ -83,7 +78,8 @@ jobs:
         run: |
           gh release view v2.6.4 *> $null
           if ($LASTEXITCODE -ne 0) { gh release create v2.6.4 --title "2.6.4" --notes "입력 화면의 오른쪽 Shift 단축키 충돌 재수정" }
-          gh release upload v2.6.4 Yoonseul_Launcher-2.6.4.zip --clobber
+          if ((gh release view v2.6.4 --json assets --jq '.assets[].name') -contains 'Yoonseul_Launcher-2.6.4.zip') { gh release delete-asset v2.6.4 Yoonseul_Launcher-2.6.4.zip --yes }
+          gh release upload v2.6.4 dist/Yoonseul_Launcher.exe --clobber
           gh release edit v2.6.4 `
             --title "2.6.4" `
             --notes "윤슬 런처 2.6.4입니다.`n`n- 기린월드 코어가 열린 입력 화면을 직접 추적하도록 수정`n- 귓속말·타이머 입력 중 오른쪽 Shift가 허브를 여는 문제 차단`n- 기존 허브 UI·단축키·HUD·설정 기능 유지" `
