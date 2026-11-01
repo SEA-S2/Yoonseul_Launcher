@@ -663,7 +663,7 @@ class Api:
         """구형 낙인/윤슬 장부를 현재 윤띵 번들로 안전하게 교체한다."""
         if not self._mods_dir or not self._registry:
             return
-        current = "yoonseul-ledger-fabric-0.2.1.jar"
+        current = "yoonseul-ledger-fabric-0.2.2.jar"
         found_legacy = False
         try:
             for filename in list(os.listdir(self._mods_dir)):
@@ -686,7 +686,7 @@ class Api:
             self._registry.record_remove("nakin")
             ok, reason = self._install_single("yoonseul-ledger")
             if ok:
-                preflight.write_log("[마이그레이션] 구형 낙인/장부를 윤띵 0.2.1로 교체")
+                preflight.write_log("[마이그레이션] 구형 낙인/장부를 윤띵 0.2.2로 교체")
             else:
                 preflight.write_log(f"[마이그레이션실패] 윤띵 설치: {reason}")
 

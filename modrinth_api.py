@@ -20,7 +20,7 @@ from datetime import datetime
 
 API_BASE = "https://api.modrinth.com/v2"
 # Modrinth 는 고유한 User-Agent 를 요구한다 (일반적인 UA 는 차단될 수 있음)
-USER_AGENT = "Yoonseul_Launcher/2.6.4"
+USER_AGENT = "Yoonseul_Launcher/2.6.5"
 
 DEFAULT_GAME_VERSION = "26.2"
 DEFAULT_LOADER = "fabric"
