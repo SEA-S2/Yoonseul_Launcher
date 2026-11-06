@@ -572,7 +572,7 @@ const DATA = {
     {id:"makeup-ultra-fast",title:"Makeup Ultra Fast",author:"MakeUp Team",downloads:"7.7M",state:"install",cat:"performance",color:"linear-gradient(140deg,#6DBE45,#3AD6D6)",blurb:"Shader visuals tuned for low-end hardware without gutting the look.",badges:[{label:"Iris",tone:"amethyst"},{label:"Performance",tone:"diamond"}]},
   ],
   news:[
-    {tag:"업데이트",tone:"grass",title:"윤슬 런처 2.6.5",body:"윤띵의 재화 단위 표시와 인식 문구를 냥에서 쿠키로 변경했습니다."},
+    {tag:"업데이트",tone:"grass",title:"윤슬 런처 2.6.6",body:"모드 검색 뒤 라이브러리 목록이 사라져 보이던 문제를 고치고 작업표시줄 최소화 동작을 개선했습니다."},
     {tag:"알림",tone:"gold",title:"개발자 알림",body:"이 런처는 Garamisme님이 개발한 동글랜드 런처의 MIT 공개 소스를 기반으로 제작된 윤슬마을 전용 비공식 런처입니다. Mojang/Microsoft 및 기린월드의 공식 제품이 아닙니다. 오류 문의는 설정 탭 하단에 지원 채널을 이용해 주세요. 비공식 경로로 재배포된 파일은 지원하지 않습니다."},
   ],
   system:[
@@ -904,7 +904,9 @@ async function extraModDelete(filename){
 }
 function libraryScreen(){
   const inst=m=>{const s=stOf(m);return s==="installed"||s==="update";};
-  const iMods=DATA.mods.filter(inst), iSh=DATA.shaders.filter(inst), iExt=state.extraMods||[];
+  /* 검색 중 DATA.mods는 검색 결과로 교체되므로 라이브러리는 원본 카탈로그를 본다. */
+  const libraryMods=(state.curatedMods&&state.curatedMods.length) ? state.curatedMods : DATA.mods;
+  const iMods=libraryMods.filter(inst), iSh=DATA.shaders.filter(inst), iExt=state.extraMods||[];
   const f=state.libFilter||"all";
   const chips=[["all","전체",iMods.length+iExt.length+iSh.length],["mods","모드",iMods.length+iExt.length],["shaders","셰이더팩",iSh.length]];
   const rowHTML=libRowHTML;
@@ -1486,6 +1488,15 @@ function flash(msg){
 /* 특정 항목만 제자리 갱신 — 전체 재렌더 없이 해당 카드/행만 교체.
    설치·삭제 시 화면 껌벅임과 스크롤 튐을 방지한다. */
 function refreshItemInPlace(m, kind){
+  /* 검색 결과에서 상태를 바꿔도 라이브러리용 원본 카탈로그에 동기화한다. */
+  if(kind==="mods" && state.curatedMods){
+    const original=state.curatedMods.find(x=>x.id===m.id);
+    if(original && original!==m){
+      original.state=m.state;
+      original._installedVersion=m._installedVersion||null;
+      if(m._latest) original._latest=m._latest;
+    }
+  }
   const sel='[data-open="'+String(m.title).replace(/"/g,'\\"')+'"]';
   // 브라우즈 그리드 카드
   document.querySelectorAll('.modcard'+sel).forEach(function(el){
@@ -2023,13 +2034,15 @@ function fmtDownloads(n){
    렌더:   installed | update | install                     */
 function applyStatuses(statuses, versions){
   statuses = statuses||{}; versions = versions||{};
-  DATA.mods.forEach(m=>{
+  const updateList=list=>(list||[]).forEach(m=>{
     const s=statuses[m.id];
     if(s==="not_installed"){ m.state="install"; m._installedVersion=null; }
     else if(s) m.state=s;   // installed / update
     const v=versions[m.id];
     if(v){ m._installedVersion=v.installed||null; if(v.latest) m._latest=v.latest; }
   });
+  updateList(DATA.mods);
+  if(state.curatedMods!==DATA.mods) updateList(state.curatedMods);
   state.installs={};        // 로컬 오버라이드 제거 → 백엔드 상태가 진실
 }
 

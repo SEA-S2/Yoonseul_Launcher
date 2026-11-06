@@ -61,6 +61,40 @@ def _show_webview2_help():
         webbrowser.open(WEBVIEW2_DOWNLOAD)
 
 
+def _enable_windows_taskbar_toggle(window):
+    """프레임 없는 창에 Windows 표준 최소화 동작을 복원한다."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        native = getattr(window, "native", None)
+        if native is None:
+            return
+        native.ShowInTaskbar = True
+        native.MinimizeBox = True
+        hwnd = int(native.Handle.ToInt64())
+        user32 = ctypes.windll.user32
+        get_style = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
+        set_style = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
+        get_style.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        set_style.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_ssize_t]
+        get_style.restype = ctypes.c_ssize_t
+        set_style.restype = ctypes.c_ssize_t
+        user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p,
+                                        ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                        ctypes.c_int, ctypes.c_uint]
+        GWL_STYLE = -16
+        WS_SYSMENU = 0x00080000
+        WS_MINIMIZEBOX = 0x00020000
+        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_FRAMECHANGED = 1, 2, 4, 0x20
+        style = get_style(hwnd, GWL_STYLE)
+        set_style(hwnd, GWL_STYLE, style | WS_SYSMENU | WS_MINIMIZEBOX)
+        user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+                            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED)
+    except Exception as exc:
+        print(f"[app.py] taskbar toggle setup failed: {exc}", flush=True)
+
+
 def _print_mc_token(uuid: str) -> int:
     """`--mc-token <uuid>` — 창 없이 유효한 MC 토큰 한 줄을 stdout 으로 내고 끝난다.
 
@@ -166,6 +200,7 @@ def main():
     #   둔다. bootFromBackend 는 idempotent(중복 무시)라 두 번 불려도 안전.
     def _trigger_boot():
         try:
+            _enable_windows_taskbar_toggle(window)
             window.evaluate_js(
                 "window.bootFromBackend ? (bootFromBackend(), 'boot triggered')"
                 " : 'bootFromBackend missing'"
