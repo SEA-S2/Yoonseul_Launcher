@@ -68,18 +68,18 @@ jobs:
         run: Copy-Item launcher_config.json dist/launcher_config.json
       - uses: actions/upload-artifact@v4
         with:
-          name: Yoonseul_Launcher-2.6.6
+          name: Yoonseul_Launcher-2.6.7
           path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Publish 2.6.6 release
+      - name: Publish 2.6.7 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.6.6 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.6.6 --title "2.6.6" --notes "모드 및 창 동작 개선" }
-          gh release upload v2.6.6 dist/Yoonseul_Launcher.exe --clobber
-          gh release edit v2.6.6 `
-            --title "2.6.6" `
-            --notes "윤슬 런처 2.6.6입니다.`n`n- 모드 탭에서 Modern UI 제거`n- 검색 후 라이브러리의 설치된 모드가 사라져 보이던 문제 수정`n- Windows 작업표시줄 아이콘으로 최소화·복원 가능하도록 개선" `
+          gh release view v2.6.7 *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create v2.6.7 --title "2.6.7" --notes "런처 시작 멈춤 긴급 수정" }
+          gh release upload v2.6.7 dist/Yoonseul_Launcher.exe --clobber
+          gh release edit v2.6.7 `
+            --title "2.6.7" `
+            --notes "윤슬 런처 2.6.7입니다.`n`n- 2.6.6에서 불러오는 중 멈추던 문제 수정`n- 모드 탭에서 Modern UI 제거`n- 검색 후 라이브러리의 설치된 모드가 사라져 보이던 문제 수정" `
             --latest
