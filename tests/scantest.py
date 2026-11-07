@@ -48,7 +48,9 @@ def make_api():
     a = api.Api.__new__(api.Api)
     a._config = {}
     a._mods_dir = mods
+    a._resourcepacks_dir = tempfile.mkdtemp(prefix="resourcepacks-")
     a._registry = modrinth_api.ModRegistry(mods)
+    a._resourcepack_registry = modrinth_api.ModRegistry(a._resourcepacks_dir)
     a._registry.record_install(m1["id"], "a.jar", "1.0", "PID_A")
     a._registry.record_install(m2["id"], "b.jar", "2.0", "PID_B")
     a._pid_cache = {m1["slug"]: "PID_A", m2["slug"]: "PID_B"}
@@ -79,6 +81,16 @@ check("조회 실패: 레지스트리를 지우지 않음", a._registry.is_insta
 check("조회 실패: lookup_ok=False 로 알림", r.get("lookup_ok") is False)
 check("조회 실패: 기록 밖 jar 만 extra", extra_names(r) == ["external.jar"])
 
+# 예전에 런처가 관리했던 항목의 낡은 레지스트리 기록은 사용자가 직접 넣은
+# 현재 jar를 숨기면 안 된다. (윤띵을 번들에서 분리한 뒤 실제로 생긴 회귀)
+a = make_api()
+a._registry.record_install("removed-yoondding", "external.jar", "0.2.3", None)
+r = a.scan_mods()
+check("구형 레지스트리 기록이 있어도 현재 카탈로그 밖 jar 는 extra",
+      "external.jar" in extra_names(r))
+check("구형 레지스트리 기록이 남은 extra 도 삭제 가능",
+      a.remove_extra_mod("external.jar").get("ok") is True)
+
 # ── 2. 조회 성공 — a.jar 만 Modrinth 가 알아봄 ──────────────────────────────
 a = make_api()
 sha_a = sha1(os.path.join(a._mods_dir, "a.jar"))
@@ -103,18 +115,19 @@ check("조회 성공: 주인 없는 jar 는 extra", extra_names(r) == ["b.jar", 
 # 서버 모드검사는 클라이언트가 자기 jar 바이트 전체를 HMAC 으로 서명해 보내게 한다.
 # 이름·버전이 같아도 바이트가 다르면 "잘못된 핸드셰이크 응답"으로 추방된다.
 from mod_catalog import MODS  # noqa: E402
-bundled = next(m for m in MODS if m.get("bundled_asset"))
-src = api._resource(os.path.join("assets", bundled["bundled_asset"]))
-a = make_api()
-dst = os.path.join(a._mods_dir, bundled["bundled_asset"])
-with open(dst, "wb") as f:
-    f.write(b"corrupted or different build")
-a.scan_mods()
-check("번들 모드 바이트가 다르면 정본으로 복구", open(dst, "rb").read() == open(src, "rb").read())
-check("복구 후 설치됨", a._mod_statuses.get(bundled["id"]) == "installed")
-mtime = os.path.getmtime(dst)
-a.scan_mods()
-check("정본이면 다시 쓰지 않음", os.path.getmtime(dst) == mtime)
+bundled = next((m for m in MODS if m.get("bundled_asset")), None)
+if bundled:
+    src = api._resource(os.path.join("assets", bundled["bundled_asset"]))
+    a = make_api()
+    dst = os.path.join(a._mods_dir, bundled["bundled_asset"])
+    with open(dst, "wb") as f:
+        f.write(b"corrupted or different build")
+    a.scan_mods()
+    check("번들 모드 바이트가 다르면 정본으로 복구", open(dst, "rb").read() == open(src, "rb").read())
+    check("복구 후 설치됨", a._mod_statuses.get(bundled["id"]) == "installed")
+    mtime = os.path.getmtime(dst)
+    a.scan_mods()
+    check("정본이면 다시 쓰지 않음", os.path.getmtime(dst) == mtime)
 
 # ── 3. 직접 추가한 모드 삭제 ────────────────────────────────────────────────
 d = a.remove_extra_mod("external.jar")

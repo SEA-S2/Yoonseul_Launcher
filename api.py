@@ -947,8 +947,24 @@ class Api:
                 self._resourcepack_registry.record_remove(mid)
                 self._mod_statuses[mid] = "not_installed"
 
-        # 카탈로그·의존 모드·번들 어디에도 기록되지 않은 jar = 사용자가 직접 넣은 모드
-        claimed = self._registry.filenames()
+        # 현재 카탈로그·현재 의존 모드·번들이 실제로 관리하는 파일만 숨긴다.
+        # 예전에 번들했던 모드(예: 구형 윤띵)의 레지스트리 기록이 남아 있을 수
+        # 있는데, registry.filenames() 전체를 사용하면 사용자가 새로 넣은 같은
+        # 파일을 "관리 모드"로 오인해 라이브러리 어디에도 표시하지 못한다.
+        managed_ids = set(MOD_BY_ID)
+        if lookup_ok:
+            managed_ids.update(_dep_key(pid) for pid in required_pids)
+        else:
+            # 네트워크 확인 실패 때는 마지막으로 확인된 의존 모드를 섣불리
+            # 직접 추가 모드로 바꾸지 않는다.
+            managed_ids.update(mid for mid in self._registry.installed_ids()
+                               if _is_dep_key(mid))
+        claimed = set()
+        for mid in managed_ids:
+            info = self._registry.get(mid)
+            if info and info.get("filename"):
+                claimed.add(info["filename"])
+        self._managed_mod_files = claimed
         extra = []
         for jar in sorted(jars, key=str.lower):
             if jar in claimed:
@@ -1411,7 +1427,15 @@ class Api:
         base = os.path.basename(filename or "")
         if not base or base != filename or not base.lower().endswith(".jar"):
             return {"ok": False, "message": "잘못된 파일명입니다."}
-        if base in self._registry.filenames():
+        managed = getattr(self, "_managed_mod_files", None)
+        if managed is None:
+            managed = set()
+            for mid in self._registry.installed_ids():
+                if mid in MOD_BY_ID or _is_dep_key(mid):
+                    info = self._registry.get(mid)
+                    if info and info.get("filename"):
+                        managed.add(info["filename"])
+        if base in managed:
             return {"ok": False, "message": "런처가 관리하는 모드입니다. 모드 목록에서 제거해주세요."}
         path = os.path.join(self._mods_dir, base)
         if not os.path.isfile(path):
