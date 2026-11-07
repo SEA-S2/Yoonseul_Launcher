@@ -61,7 +61,4 @@ text = text.replace("윤슬 런처 2.6.5", "윤슬 런처 2.6.6")
 text = text.replace("윤슬 런처 2.6.6", "윤슬 런처 2.6.7")
 text = text.replace("윤슬 런처 2.6.7", "윤슬 런처 2.6.8")
 text = text.replace("윤슬 런처 2.6.8", "윤슬 런처 2.6.9")
-text = text.replace(
-    "기존 허브·HUD·단축키·설정 기능을 기린월드 26.2 코어로 전환했습니다.",
-)
 html.write_text(text, encoding="utf-8")
