@@ -38,8 +38,8 @@ jobs:
         run: gradle :fabric:build -x test --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: yoonseul-ledger-fabric-0.2.2
-          path: build/yoonseul-helper/fabric/build/libs/yoonseul-ledger-fabric-0.2.2.jar
+          name: yoonseul-ledger-fabric-0.2.9
+          path: build/yoonseul-helper/fabric/build/libs/yoonseul-ledger-fabric-0.2.9.jar
           if-no-files-found: error
 
   build-launcher:
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: yoonseul-ledger-fabric-0.2.2
+          name: yoonseul-ledger-fabric-0.2.9
           path: assets
       - uses: actions/setup-python@v5
         with:
@@ -68,18 +68,18 @@ jobs:
         run: Copy-Item launcher_config.json dist/launcher_config.json
       - uses: actions/upload-artifact@v4
         with:
-          name: Yoonseul_Launcher-2.6.7
+          name: Yoonseul_Launcher-2.6.8
           path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Publish 2.6.7 release
+      - name: Publish 2.6.8 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.6.7 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.6.7 --title "2.6.7" --notes "런처 시작 멈춤 긴급 수정" }
-          gh release upload v2.6.7 dist/Yoonseul_Launcher.exe --clobber
-          gh release edit v2.6.7 `
-            --title "2.6.7" `
-            --notes "윤슬 런처 2.6.7입니다.`n`n- 2.6.6에서 불러오는 중 멈추던 문제 수정`n- 모드 탭에서 Modern UI 제거`n- 검색 후 라이브러리의 설치된 모드가 사라져 보이던 문제 수정" `
+          gh release view v2.6.8 *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create v2.6.8 --title "2.6.8" --notes "윤띵 0.2.9 업데이트" }
+          gh release upload v2.6.8 dist/Yoonseul_Launcher.exe --clobber
+          gh release edit v2.6.8 `
+            --title "2.6.8" `
+            --notes "윤슬 런처 2.6.8입니다.`n`n- 윤띵 0.2.9 업데이트`n- YACL 없이 동작하는 윤띵 자체 설정 화면 추가`n- HUD 수입·지출 분야별 표시 개수 설정 추가`n- 하루 기준 시각 변경 시 기존 기록 재집계" `
             --latest
