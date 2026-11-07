@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'mods/**'
       - '*.py'
       - '*.spec'
       - 'frontend/**'
@@ -12,7 +11,6 @@ on:
       - 'requirements.txt'
       - 'launcher_config.json'
       - 'tools/patch_launcher_agent.py'
-      - '.github/workflows/build-mods.yml'
 
 permissions:
   contents: write
@@ -38,8 +36,8 @@ jobs:
         run: gradle :fabric:build -x test --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: yoonseul-ledger-fabric-0.2.9
-          path: build/yoonseul-helper/fabric/build/libs/yoonseul-ledger-fabric-0.2.9.jar
+          name: yoonseul-ledger-fabric-0.2.3
+          path: build/yoonseul-helper/fabric/build/libs/yoonseul-ledger-fabric-0.2.3.jar
           if-no-files-found: error
 
   build-launcher:
@@ -50,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: yoonseul-ledger-fabric-0.2.9
+          name: yoonseul-ledger-fabric-0.2.3
           path: assets
       - uses: actions/setup-python@v5
         with:
