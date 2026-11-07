@@ -36,23 +36,6 @@ MODS = [
         "dependencies": [],
         "hidden": False,
     },
-    {
-        "id": "yoonseul-ledger",
-        "name": "윤띵",
-        "slug": None,
-        "bundled_asset": "yoonseul-ledger-fabric-0.2.9.jar",
-        "bundled_version": "0.2.9",
-        "category": "편의",
-        "required": False,
-        "tags": ["편의", "통계", "MIT 기반"],
-        "description": "낙인 MIT 공개 소스를 Minecraft 26.2로 이식한 윤슬용 경제 기록 모드입니다.\n"
-                       "수동 기록·통계·분류·내보내기·정산 복사를 지원합니다.\n"
-                       "서버 재화 문구가 확정되기 전까지 자동 재화 감지는 기본적으로 꺼져 있습니다.",
-        "exclusive_group": None,
-        "dependencies": ["fabric-api"],
-        "hidden": False,
-    },
-
     # ── 최적화 ───────────────────────────────────────────────────────────
     {
         "id": "sodium",
