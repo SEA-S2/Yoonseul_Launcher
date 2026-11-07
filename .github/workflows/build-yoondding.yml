@@ -31,15 +31,16 @@ jobs:
         run: gradle :fabric:test :fabric:build --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: yoonseul-ledger-fabric-0.2.3
-          path: build/yoondding/fabric/build/libs/yoonseul-ledger-fabric-0.2.3.jar
+          name: yoondding-fabric-0.2.3
+          path: build/yoondding/fabric/build/libs/yoondding-fabric-0.2.3.jar
           if-no-files-found: error
       - name: Publish Yoondding 0.2.3
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          JAR=build/yoondding/fabric/build/libs/yoonseul-ledger-fabric-0.2.3.jar
+          JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.2.3.jar
           gh release view yoondding-v0.2.3 >/dev/null 2>&1 || gh release create yoondding-v0.2.3 --title "윤띵 0.2.3" --notes "윤띵 0.2.3입니다."
+          gh release delete-asset yoondding-v0.2.3 yoonseul-ledger-fabric-0.2.3.jar --yes 2>/dev/null || true
           gh release upload yoondding-v0.2.3 "$JAR" --clobber
           gh release edit yoondding-v0.2.3 --title "윤띵 0.2.3" --notes "윤띵 0.2.3입니다.\n\n- 영수증·집계·플리마켓·고급 설정 화면 추가\n- 수입·지출 분야 표시 개수 설정 추가\n- 하루 기준 시각 변경 시 기존 기록 재집계\n- 기린월드 자동 인식기는 서버 문구 검증 전까지 기본 비활성"
