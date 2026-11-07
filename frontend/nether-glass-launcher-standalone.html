@@ -885,7 +885,7 @@ function warnBannedMods(){
 /* 카탈로그 밖에서 mods 폴더에 직접 넣은 jar — 이름·버전 정보가 없어 파일명으로 보여준다 */
 function extraModRowHTML(x){
   return '<div class="librow" style="cursor:default">'
-    +'<div class="libthumb" style="background:'+gradientFor(x.filename)+';display:flex;align-items:center;justify-content:center;color:#fff">'+ic("blocks",22)+'</div>'
+    +'<div class="libthumb" style="'+bgFor(x.icon,gradientFor(x.filename))+';display:flex;align-items:center;justify-content:center;color:#fff">'+(x.icon?'':ic("blocks",22))+'</div>'
     +'<div style="flex:1;min-width:0">'
       +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:var(--text-md);font-weight:700;color:var(--text-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.filename)+'</span>'
       +'<span class="badge" data-tone="gold">직접 추가</span></div>'

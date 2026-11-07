@@ -52,6 +52,39 @@ def _is_dep_key(mod_id: str) -> bool:
     return str(mod_id).startswith(DEP_PREFIX)
 
 
+def _jar_display_metadata(path: str) -> dict:
+    """Fabric JAR의 표시명·아이콘을 라이브러리 카드용으로 읽는다."""
+    try:
+        import base64
+        import json
+        import zipfile
+
+        with zipfile.ZipFile(path) as zf:
+            meta = json.loads(zf.read("fabric.mod.json").decode("utf-8"))
+            result = {"name": str(meta.get("name") or "").strip()}
+            icon = meta.get("icon")
+            if isinstance(icon, dict):
+                choices = [(int(k), v) for k, v in icon.items()
+                           if str(k).isdigit() and isinstance(v, str)]
+                icon = max(choices, default=(0, None))[1]
+            if not isinstance(icon, str) or not icon:
+                return result
+            icon = icon.lstrip("/")
+            info = zf.getinfo(icon)
+            if info.file_size > 2 * 1024 * 1024:
+                return result
+            raw = zf.read(info)
+            ext = os.path.splitext(icon)[1].lower()
+            mime = {".png": "image/png", ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext)
+            if mime:
+                result["icon"] = "data:%s;base64,%s" % (
+                    mime, base64.b64encode(raw).decode("ascii"))
+            return result
+    except Exception:
+        return {}
+
+
 def _resource(rel: str) -> str:
     """PyInstaller onefile 에서도 동작하는 리소스 경로 해석.
     (app.py 의 _resource 와 동일 — 번들 에셋 복사용)"""
@@ -969,11 +1002,14 @@ class Api:
         for jar in sorted(jars, key=str.lower):
             if jar in claimed:
                 continue
+            path = os.path.join(mods_dir, jar)
             try:
-                size = os.path.getsize(os.path.join(mods_dir, jar))
+                size = os.path.getsize(path)
             except OSError:
                 size = 0
-            extra.append({"filename": jar, "size": size})
+            item = {"filename": jar, "size": size}
+            item.update(_jar_display_metadata(path))
+            extra.append(item)
 
         return {"ok": True, "statuses": dict(self._mod_statuses),
                 "versions": dict(getattr(self, "_mod_versions", {})),

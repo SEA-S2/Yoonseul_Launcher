@@ -8,9 +8,11 @@
 """
 
 import hashlib
+import json
 import os
 import sys
 import tempfile
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -60,6 +62,16 @@ def make_api():
     return a
 
 
+def write_fabric_jar(path, name="윤띵"):
+    # 1x1 PNG — 아이콘을 실제 JAR 내부에서 읽는지 확인하는 용도
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c63606060f80f0001040100b51c0c020000000049454e44ae426082")
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("fabric.mod.json", json.dumps({
+            "schemaVersion": 1, "id": "test-extra", "version": "1",
+            "name": name, "icon": "assets/test/icon.png"}))
+        zf.writestr("assets/test/icon.png", png)
+
+
 def extra_names(r):
     return sorted(e["filename"] for e in r.get("extra", []))
 
@@ -90,6 +102,15 @@ check("구형 레지스트리 기록이 있어도 현재 카탈로그 밖 jar �
       "external.jar" in extra_names(r))
 check("구형 레지스트리 기록이 남은 extra 도 삭제 가능",
       a.remove_extra_mod("external.jar").get("ok") is True)
+
+a = make_api()
+icon_jar = os.path.join(a._mods_dir, "yoondding.jar")
+write_fabric_jar(icon_jar)
+r = a.scan_mods()
+icon_item = next((x for x in r.get("extra", []) if x["filename"] == "yoondding.jar"), {})
+check("직접 추가한 Fabric 모드의 실제 아이콘을 읽음",
+      icon_item.get("name") == "윤띵"
+      and icon_item.get("icon", "").startswith("data:image/png;base64,"))
 
 # ── 2. 조회 성공 — a.jar 만 Modrinth 가 알아봄 ──────────────────────────────
 a = make_api()
