@@ -2386,7 +2386,7 @@ async function loadMedia(){
     const res = await Bridge.api.get_mod_media();
     if(!res || !res.ok || !res.media) return;
     const media = res.media;
-    DATA.mods.forEach(m=>{
+    const applyMedia=m=>{
       const info = media[m.id];
       if(info){
         if(info.icon_url) m.icon = info.icon_url;
@@ -2396,7 +2396,12 @@ async function loadMedia(){
         if(info.author && !m.author) m.author = info.author;  // 번들(루안 등)은 유지
         if(info.author) m._detailLoaded = m._detailLoaded;    // 제작자는 이미 확보
       }
-    });
+    };
+    DATA.mods.forEach(applyMedia);
+    // 라이브러리는 검색 결과에 영향을 받지 않도록 curatedMods 복사본을 쓴다.
+    // applyCatalog 직후 만든 복사본에도 미디어를 같이 반영하지 않으면 모드 탭은
+    // 실제 아이콘인데 라이브러리만 임시 그라디언트로 남는다.
+    (state.curatedMods||[]).forEach(applyMedia);
     // 카드/라이브러리의 by 제작자·사진이 즉시 반영되도록 현재 화면 갱신
     if(state.nav==="mods"||state.nav==="library"||state.nav==="play") renderScreen(false);
   }catch(_){}
