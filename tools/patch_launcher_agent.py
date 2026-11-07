@@ -22,6 +22,7 @@ text = text.replace('APP_VERSION = "2.6.4"', 'APP_VERSION = "2.6.5"')
 text = text.replace('APP_VERSION = "2.6.5"', 'APP_VERSION = "2.6.6"')
 text = text.replace('APP_VERSION = "2.6.6"', 'APP_VERSION = "2.6.7"')
 text = text.replace('APP_VERSION = "2.6.7"', 'APP_VERSION = "2.6.8"')
+text = text.replace('APP_VERSION = "2.6.8"', 'APP_VERSION = "2.6.9"')
 meta.write_text(text, encoding="utf-8")
 
 launch_py = launcher / "launcher.py"
@@ -59,6 +60,7 @@ text = text.replace("윤슬 런처 2.6.4", "윤슬 런처 2.6.5")
 text = text.replace("윤슬 런처 2.6.5", "윤슬 런처 2.6.6")
 text = text.replace("윤슬 런처 2.6.6", "윤슬 런처 2.6.7")
 text = text.replace("윤슬 런처 2.6.7", "윤슬 런처 2.6.8")
+text = text.replace("윤슬 런처 2.6.8", "윤슬 런처 2.6.9")
 text = text.replace(
     "구형 낙인·장부 파일을 윤띵으로 자동 교체하고 윤슬 코어 배포 방식을 바로잡았습니다.",
     "기존 허브·HUD·단축키·설정 기능을 기린월드 26.2 코어로 전환했습니다.",

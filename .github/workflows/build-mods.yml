@@ -68,18 +68,18 @@ jobs:
         run: Copy-Item launcher_config.json dist/launcher_config.json
       - uses: actions/upload-artifact@v4
         with:
-          name: Yoonseul_Launcher-2.6.8
+          name: Yoonseul_Launcher-2.6.9
           path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Publish 2.6.8 release
+      - name: Publish 2.6.9 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.6.8 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.6.8 --title "2.6.8" --notes "윤띵 0.2.9 업데이트" }
-          gh release upload v2.6.8 dist/Yoonseul_Launcher.exe --clobber
-          gh release edit v2.6.8 `
-            --title "2.6.8" `
-            --notes "윤슬 런처 2.6.8입니다.`n`n- 윤띵 0.2.9 업데이트`n- YACL 없이 동작하는 윤띵 자체 설정 화면 추가`n- HUD 수입·지출 분야별 표시 개수 설정 추가`n- 하루 기준 시각 변경 시 기존 기록 재집계" `
+          gh release view v2.6.9 *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create v2.6.9 --title "2.6.9" --notes "연보라 노을 테마 업데이트" }
+          gh release upload v2.6.9 dist/Yoonseul_Launcher.exe --clobber
+          gh release edit v2.6.9 `
+            --title "2.6.9" `
+            --notes "윤슬 런처 2.6.9입니다.`n`n- 라이트 테마를 연보라·살구빛 노을 색상으로 변경`n- 다크 테마를 남보라·자주빛 저녁 하늘 색상으로 변경`n- 카드·버튼·강조색을 새 테마와 어울리도록 조정" `
             --latest
