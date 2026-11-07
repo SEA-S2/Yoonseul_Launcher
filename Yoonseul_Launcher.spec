@@ -4,7 +4,11 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('assets', 'assets'), ('frontend', 'frontend')]
 binaries = []
-hiddenimports = []
+hiddenimports = [
+    'api', 'app_meta', 'auth', 'autostart', 'fontpack', 'game_installer',
+    'instance', 'launcher', 'mod_catalog', 'modrinth_api', 'preflight',
+    'server_status', 'skin'
+]
 datas += collect_data_files('certifi')
 tmp_ret = collect_all('requests')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
