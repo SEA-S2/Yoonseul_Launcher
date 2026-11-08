@@ -37,18 +37,18 @@ jobs:
         run: Copy-Item launcher_config.json dist/launcher_config.json
       - uses: actions/upload-artifact@v4
         with:
-          name: Yoonseul_Launcher-2.7.0
+          name: Yoonseul_Launcher-2.7.1
           path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Publish 2.7.0 release
+      - name: Publish 2.7.1 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.7.0 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.7.0 --title "2.7.0" --notes "타이머 알림음 업데이트" }
-          gh release upload v2.7.0 dist/Yoonseul_Launcher.exe --clobber
-          gh release edit v2.7.0 `
-            --title "2.7.0" `
-            --notes "윤슬 런처 2.7.0입니다.`n`n- 클라이언트 허브 타이머 알림음을 전용 음성 알림으로 변경`n- 타이머 기본 알림 음량을 100%로 상향`n- 설정의 알림 크기로 음량 조절 가능`n- 윤띵은 런처에 포함하지 않으며 필요한 경우 별도로 설치" `
+          gh release view v2.7.1 *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create v2.7.1 --title "2.7.1" --notes "게임 실행 긴급 수정" }
+          gh release upload v2.7.1 dist/Yoonseul_Launcher.exe --clobber
+          gh release edit v2.7.1 `
+            --title "2.7.1" `
+            --notes "윤슬 런처 2.7.1입니다.`n`n- 2.7.0에서 게임이 실행 직후 종료되던 문제 수정`n- 안정적인 기린월드 26.2 코어로 복구`n- 윤띵은 런처에 포함하지 않으며 필요한 경우 별도로 설치" `
             --latest
