@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo ============================================
-echo  Yoonseul_Launcher v2.7.1 - Build Script
+echo  Yoonseul_Launcher v2.7.0 - Build Script
 echo ============================================
 echo.
 
