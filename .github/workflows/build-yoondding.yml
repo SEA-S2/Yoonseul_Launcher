@@ -31,16 +31,14 @@ jobs:
         run: gradle :fabric:test :fabric:build --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: yoondding-fabric-0.2.3
-          path: build/yoondding/fabric/build/libs/yoondding-fabric-0.2.3.jar
+          name: yoondding-fabric-0.2.4
+          path: build/yoondding/fabric/build/libs/yoondding-fabric-0.2.4.jar
           if-no-files-found: error
-      - name: Publish Yoondding 0.2.3
+      - name: Publish Yoondding 0.2.4
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.2.3.jar
-          gh release view yoondding-v0.2.3 >/dev/null 2>&1 || gh release create yoondding-v0.2.3 --title "윤띵 0.2.3" --notes "윤띵 0.2.3입니다."
-          gh release delete-asset yoondding-v0.2.3 yoonseul-ledger-fabric-0.2.3.jar --yes 2>/dev/null || true
-          gh release upload yoondding-v0.2.3 "$JAR" --clobber
-          gh release edit yoondding-v0.2.3 --title "윤띵 0.2.3" --notes "윤띵 0.2.3입니다.\n\n- 영수증·집계·플리마켓·고급 설정 화면 추가\n- 수입·지출 분야 표시 개수 설정 추가\n- 하루 기준 시각 변경 시 기존 기록 재집계\n- 기린월드 자동 인식기는 서버 문구 검증 전까지 기본 비활성"
+          JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.2.4.jar
+          gh release create yoondding-v0.2.4 --title "윤띵 0.2.4" --notes "윤띵 0.2.4입니다.\n\n- 기린월드 위키에 없는 금고·스킬 수리 비용·바다의 가호 설정 제거\n- 이체 표기를 사용자 간 송금 기준으로 정리\n- 플리마켓 수수료 선택지를 1%·2%·3%로 제한\n- /낙인 및 /nakin 원작 명령어 제거"
+          gh release upload yoondding-v0.2.4 "$JAR"
