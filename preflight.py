@@ -31,7 +31,7 @@ CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 GAME_VERSION = "26.2"
 APP_NAME     = "YoonseulLauncher"   # 데이터 폴더명 (instance.APP_DIR_NAME 과 동일)
-USER_AGENT   = "Yoonseul_Launcher/2.6.9"
+USER_AGENT   = "Yoonseul_Launcher/2.7.0"
 
 
 # ── SSL 컨텍스트 (PyInstaller exe 의 인증서 검증 실패 방지) ─────────────────────

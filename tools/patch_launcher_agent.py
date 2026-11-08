@@ -23,6 +23,7 @@ text = text.replace('APP_VERSION = "2.6.5"', 'APP_VERSION = "2.6.6"')
 text = text.replace('APP_VERSION = "2.6.6"', 'APP_VERSION = "2.6.7"')
 text = text.replace('APP_VERSION = "2.6.7"', 'APP_VERSION = "2.6.8"')
 text = text.replace('APP_VERSION = "2.6.8"', 'APP_VERSION = "2.6.9"')
+text = text.replace('APP_VERSION = "2.6.9"', 'APP_VERSION = "2.7.0"')
 meta.write_text(text, encoding="utf-8")
 
 launch_py = launcher / "launcher.py"
@@ -61,4 +62,5 @@ text = text.replace("윤슬 런처 2.6.5", "윤슬 런처 2.6.6")
 text = text.replace("윤슬 런처 2.6.6", "윤슬 런처 2.6.7")
 text = text.replace("윤슬 런처 2.6.7", "윤슬 런처 2.6.8")
 text = text.replace("윤슬 런처 2.6.8", "윤슬 런처 2.6.9")
+text = text.replace("윤슬 런처 2.6.9", "윤슬 런처 2.7.0")
 html.write_text(text, encoding="utf-8")

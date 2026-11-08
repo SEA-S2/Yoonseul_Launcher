@@ -37,18 +37,18 @@ jobs:
         run: Copy-Item launcher_config.json dist/launcher_config.json
       - uses: actions/upload-artifact@v4
         with:
-          name: Yoonseul_Launcher-2.6.9
+          name: Yoonseul_Launcher-2.7.0
           path: dist/Yoonseul_Launcher.exe
           if-no-files-found: error
-      - name: Publish 2.6.9 release
+      - name: Publish 2.7.0 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.6.9 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.6.9 --title "2.6.9" --notes "연보라 노을 테마 업데이트" }
-          gh release upload v2.6.9 dist/Yoonseul_Launcher.exe --clobber
-          gh release edit v2.6.9 `
-            --title "2.6.9" `
-            --notes "윤슬 런처 2.6.9입니다.`n`n- 라이트 테마를 연보라·살구빛 노을 색상으로 변경`n- 다크 테마를 남보라·자주빛 저녁 하늘 색상으로 변경`n- 카드·버튼·강조색을 새 테마와 어울리도록 조정`n- 윤띵은 런처에서 제외되며 필요한 경우 별도로 설치" `
+          gh release view v2.7.0 *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create v2.7.0 --title "2.7.0" --notes "타이머 알림음 업데이트" }
+          gh release upload v2.7.0 dist/Yoonseul_Launcher.exe --clobber
+          gh release edit v2.7.0 `
+            --title "2.7.0" `
+            --notes "윤슬 런처 2.7.0입니다.`n`n- 클라이언트 허브 타이머 알림음을 전용 음성 알림으로 변경`n- 타이머 기본 알림 음량을 100%로 상향`n- 설정의 알림 크기로 음량 조절 가능`n- 윤띵은 런처에 포함하지 않으며 필요한 경우 별도로 설치" `
             --latest
