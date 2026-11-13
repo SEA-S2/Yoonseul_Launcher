@@ -28,7 +28,7 @@ jobs:
         run: unzip -q mods/girinworld-core-src.zip -d build-src
       - name: Remove custom time feature
         working-directory: build-src/girinworld-core
-        run: git apply ../../tools/remove-custom-time.patch
+        run: git apply -p3 ../../tools/remove-custom-time.patch
       - name: Verify custom time removal
         working-directory: build-src/girinworld-core
         shell: bash
