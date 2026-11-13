@@ -2,6 +2,15 @@ name: Build Yoonseul Mods
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '*.py'
+      - '*.spec'
+      - 'frontend/**'
+      - 'assets/**'
+      - 'requirements.txt'
+      - 'launcher_config.json'
+      - 'tools/patch_launcher_agent.py'
 
 permissions:
   contents: write
