@@ -10,7 +10,7 @@ on:
       - '.github/workflows/build-girinworld-core.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -49,6 +49,18 @@ jobs:
           javap -classpath "$CP" -private -s net.minecraft.client.gui.Gui
           javap -classpath "$CP" -private -s net.minecraft.client.gui.Hud
           javap -classpath "$CP" -private -s net.minecraft.client.renderer.state.gui.GuiRenderState
+      - name: Publish core to launcher branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git worktree add -B launcher-main /tmp/launcher-main origin/main
+          cp build-src/girinworld-core/build/libs/girinworld-core-0.3.0.jar /tmp/launcher-main/assets/girinworld-core-26.2.jar
+          cd /tmp/launcher-main
+          git add assets/girinworld-core-26.2.jar
+          git commit -m "Remove custom time from Girinworld core"
+          git push origin HEAD:main
       - uses: actions/upload-artifact@v4
         with:
           name: girinworld-core-26.2
