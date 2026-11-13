@@ -44,5 +44,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.3.0.jar
-          gh release create yoondding-v0.3.0 --title "윤띵 0.3.0" --latest=false --notes "윤띵 0.3.0입니다.\n\n- 기린월드 기준 거래 테스트로 정리\n- 테스트 거래를 영수증 HUD와 장부에 즉시 반영\n- 내역 스크롤바 클릭 시 관리 탭으로 넘어가던 문제 수정\n- 스크롤 손잡이 좌클릭 드래그 지원\n- config/yoonseul-ledger 및 config/nakin 자료를 config/yoondding으로 이전\n- 파일명을 yoondding-fabric으로 통일"
-          gh release upload yoondding-v0.3.0 "$JAR"
+          cat > /tmp/yoondding-notes.md <<'EOF'
+          윤띵 0.3.0입니다.
+
+          - 기린월드 기준 거래 테스트로 정리
+          - 테스트 거래를 영수증 HUD와 장부에 즉시 반영
+          - 내역 스크롤바 클릭 시 관리 탭으로 넘어가던 문제 수정
+          - 스크롤 손잡이 좌클릭 드래그 지원
+          - config/yoonseul-ledger 및 config/nakin 자료를 config/yoondding으로 이전
+          - 파일명을 yoondding-fabric으로 통일
+          EOF
+          gh release view yoondding-v0.3.0 >/dev/null 2>&1 || \
+            gh release create yoondding-v0.3.0 --title "윤띵 0.3.0" --latest=false --notes-file /tmp/yoondding-notes.md
+          gh release upload yoondding-v0.3.0 "$JAR" --clobber
+          gh release edit yoondding-v0.3.0 --title "윤띵 0.3.0" --latest=false --notes-file /tmp/yoondding-notes.md
