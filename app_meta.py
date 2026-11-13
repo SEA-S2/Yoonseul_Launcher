@@ -6,7 +6,7 @@ tkinter 파일을 쓰지 않으므로 여기로 분리해 백엔드/브릿지가
 
 APP_NAME = "윤슬 런처"
 APP_NAME_EN = "Yoonseul_Launcher"
-APP_VERSION = "2.7.1"
+APP_VERSION = "2.7.1"  # 사용자 지정 시간 기능 제거
 # 릴리스 채널: "beta" 면 UI 에 베타 표식을 붙인다. 정식 배포 시 "release" 로.
 APP_CHANNEL = "release"
 
