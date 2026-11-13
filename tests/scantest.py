@@ -103,6 +103,13 @@ check("구형 레지스트리 기록이 있어도 현재 카탈로그 밖 jar �
 check("구형 레지스트리 기록이 남은 extra 도 삭제 가능",
       a.remove_extra_mod("external.jar").get("ok") is True)
 
+# 실제 구형 윤띵 관리 ID는 스캔할 때 레지스트리에서 제거하되 JAR 파일은 보존한다.
+a = make_api()
+a._registry.record_install("yoonseul-ledger", "external.jar", "0.2.9", None)
+r = a.scan_mods()
+check("구형 윤띵 관리 기록 자동 제거", a._registry.get("yoonseul-ledger") is None)
+check("구형 윤띵 JAR는 직접 추가 모드로 보존", "external.jar" in extra_names(r))
+
 a = make_api()
 icon_jar = os.path.join(a._mods_dir, "yoondding.jar")
 write_fabric_jar(icon_jar)

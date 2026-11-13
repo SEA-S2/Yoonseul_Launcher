@@ -46,9 +46,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view v2.7.1 *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v2.7.1 --title "2.7.1" --notes "사용자 지정 시간 기능 제거" }
+          if ($LASTEXITCODE -ne 0) { gh release create v2.7.1 --title "2.7.1" --notes "사용자 지정 시간 기능 제거 및 윤띵 관리 기록 정리" }
           gh release upload v2.7.1 dist/Yoonseul_Launcher.exe --clobber
           gh release edit v2.7.1 `
             --title "2.7.1" `
-            --notes "윤슬 런처 2.7.1입니다.`n`n- 클라이언트 허브의 사용자 지정 시간 기능 제거`n- 시간 프리셋 단축키와 시간 변경 동작 제거`n- 윤띵은 런처에 포함하지 않으며 필요한 경우 별도로 설치" `
+            --notes "윤슬 런처 2.7.1입니다.`n`n- 클라이언트 허브의 사용자 지정 시간 기능 제거`n- 시간 프리셋 단축키와 시간 변경 동작 제거`n- 예전에 런처가 설치했던 윤띵 0.2.9 관리 기록 자동 정리`n- 윤띵 JAR는 삭제하지 않고 직접 추가한 모드로 정상 표시`n- 윤띵은 런처에 포함하지 않으며 필요한 경우 별도로 설치" `
             --latest

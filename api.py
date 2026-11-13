@@ -792,6 +792,12 @@ class Api:
         mods_dir = self._mods_dir
         os.makedirs(mods_dir, exist_ok=True)
 
+        # 윤띵은 런처 번들에서 분리되어 사용자가 직접 설치·업데이트한다.
+        # 예전 버전이 남긴 관리 기록만 지우고 실제 JAR는 건드리지 않는다.
+        # 그래야 새 yoondding JAR가 직접 추가한 모드로 정상 표시된다.
+        for retired_id in ("yoonseul-ledger", "nakin"):
+            self._registry.record_remove(retired_id)
+
         # Step 1: 번들 모드
         for mod in MODS:
             if mod.get("slug"):
