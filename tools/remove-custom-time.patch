@@ -1,0 +1,245 @@
+--- a/src/main/java/kr/girinworld/core/features/settings/ModuleRegistry.java
++++ b/src/main/java/kr/girinworld/core/features/settings/ModuleRegistry.java
+@@ -15,7 +15,6 @@
+ import kr.girinworld.core.features.hud.InfoHud;
+ import kr.girinworld.core.features.timer.TimerScreen;
+ import kr.girinworld.core.features.visual.BrightnessController;
+-import kr.girinworld.core.features.visual.CustomTimeController;
+ import kr.girinworld.core.features.visual.FontScaleController;
+ import kr.girinworld.core.features.whisper.WhisperScreen;
+ import kr.girinworld.core.features.world.BeamFilterScreen;
+@@ -27,7 +26,6 @@
+    private static final String[] SPEED_UNITS = new String[]{"블록/초", "km/h"};
+    private static final String[] HELD_PRESETS = new String[]{"자유 배치", "조준선 아래", "핫바 위"};
+    private static final String[] TIME_FORMATS = new String[]{"14:59", "14:59:30", "오후 2:59"};
+-   private static final String[] TIME_MODES = new String[]{"고정 시각", "실시간 연동"};
+    private static final String[] BEAM_STYLES = new String[]{"신호기 빔", "파티클"};
+    private static final String[] HEALTH_TARGETS = new String[]{"몹", "플레이어", "둘 다"};
+    private static final String[] BEAM_COLOR_MODES = new String[]{"아이템 등급 자동", "지정 색"};
+@@ -152,24 +150,6 @@
+                )
+             )
+       );
+-      out.add(
+-         new ClientModule("time", "사용자 지정 시간", "내 화면의 시간대만 바꿉니다 — 서버 시간은 그대로 (서버 규정 확인 필요)", "시각")
+-            .key(c -> c.keys.timePreset)
+-            .toggle(c -> c.time.enabled, (c, v) -> c.time.enabled = v)
+-            .opts(
+-               () -> List.of(
+-                  Opt.cycle("모드", TIME_MODES, () -> Config.get().time.mode, v -> Config.get().time.mode = v),
+-                  Opt.cycle("프리셋", CustomTimeController.PRESET_NAMES, () -> Math.max(0, CustomTimeController.presetIndex()), v -> {
+-                     Config.get().time.mode = 0;
+-                     Config.get().time.fixed = CustomTimeController.PRESET_TICKS[v];
+-                  }),
+-                  Opt.slider("고정 시각", 0.0, 23999.0, 100.0, () -> Config.get().time.fixed, v -> {
+-                     Config.get().time.mode = 0;
+-                     Config.get().time.fixed = (int)Math.round(v);
+-                  }, CustomTimeController::display)
+-               )
+-            )
+-      );
+       out.add(
+          new ClientModule("font", "글꼴 크기", "글꼴별로 크기를 조절합니다 — 큰 글꼴 때문에 서버 UI가 밀릴 때", "시각")
+             .toggle(c -> c.font.enabled, (c, v) -> c.font.enabled = v)
+--- a/src/main/java/kr/girinworld/core/KeyBindings.java
++++ b/src/main/java/kr/girinworld/core/KeyBindings.java
+@@ -42,12 +42,9 @@
+    private static final KeyBindings.Bind INV_HOLD = new KeyBindings.Bind(
+       "inventory", "인벤토리 HUD (홀드)", UNBOUND, c -> c.keys.invHold, (c, v) -> c.keys.invHold = v
+    );
+-   private static final KeyBindings.Bind TIME_PRESET = new KeyBindings.Bind(
+-      "time", "시간 프리셋 순환", UNBOUND, c -> c.keys.timePreset, (c, v) -> c.keys.timePreset = v
+-   );
+    private static final KeyBindings.Bind ZOOM = new KeyBindings.Bind("zoom", "줌 (홀드)", 90, c -> c.keys.zoom, (c, v) -> c.keys.zoom = v);
+    private static final KeyBindings.Bind[] ALL = new KeyBindings.Bind[]{
+-      QUICKMENU, SETTINGS, CAMERA, CALC, TIMER, TIMER_RECENT, WHISPER, MACRO, AUTOSPRINT, BRIGHTNESS, INV_HOLD, TIME_PRESET, ZOOM
++      QUICKMENU, SETTINGS, CAMERA, CALC, TIMER, TIMER_RECENT, WHISPER, MACRO, AUTOSPRINT, BRIGHTNESS, INV_HOLD, ZOOM
+    };
+    private static Category category;
+    private static boolean registered = false;
+@@ -210,10 +207,6 @@
+       return matchesKey(BRIGHTNESS.id, event);
+    }
+ 
+-   public static boolean matchesTimePreset(KeyEvent event) {
+-      return matchesKey(TIME_PRESET.id, event);
+-   }
+-
+    public static boolean invHoldActive() {
+       KeyMapping m = INV_HOLD.mapping;
+       return m != null && !m.isUnbound() ? m.isDown() : true;
+--- a/src/main/java/kr/girinworld/core/Hooks.java
++++ b/src/main/java/kr/girinworld/core/Hooks.java
+@@ -23,7 +23,6 @@
+ import kr.girinworld.core.features.timer.TimerScreen;
+ import kr.girinworld.core.features.visual.AdvancementDetails;
+ import kr.girinworld.core.features.visual.BrightnessController;
+-import kr.girinworld.core.features.visual.CustomTimeController;
+ import kr.girinworld.core.features.visual.FontScaleController;
+ import kr.girinworld.core.features.visual.HealthTagController;
+ import kr.girinworld.core.features.whisper.WhisperScreen;
+@@ -72,51 +71,13 @@
+    private static volatile int gridlinesKeyCache = Integer.MIN_VALUE;
+    private static volatile boolean loggedClassloaders = false;
+    private static long extractStart;
+-   private static long lightmapDiagAt;
+-   private static int lightmapClockBase;
+-   private static int lightmapClockReads;
+-   private static int lightmapSampled;
+-   private static int lightmapSkipped;
+    private static Field accumulatedDX;
+    private static Field accumulatedDY;
+    private static boolean reflectionInitialized = false;
+    private static Field moveVectorField;
+    private static boolean moveReflectionInitialized = false;
+-   private static Field lightmapNeedsUpdate;
+-   private static boolean lightmapReflectionInit;
+    private static boolean brightnessWasOn;
+ 
+-   private static void logLightmapDiag(LightmapRenderState state) {
+-      if (CustomTimeController.enabled()) {
+-         lightmapClockReads = lightmapClockReads + (CustomTimeController.overrideCount() - lightmapClockBase);
+-         if (state != null && state.needsUpdate) {
+-            lightmapSampled++;
+-         } else {
+-            lightmapSkipped++;
+-         }
+-
+-         long now = System.nanoTime();
+-         if (lightmapDiagAt == 0L || now - lightmapDiagAt >= 5000000000L) {
+-            lightmapDiagAt = now;
+-            CoreLog.info(
+-               "lightmap: clockReadsInside="
+-                  + lightmapClockReads
+-                  + " sampled="
+-                  + lightmapSampled
+-                  + " skipped="
+-                  + lightmapSkipped
+-                  + " target="
+-                  + CustomTimeController.display()
+-                  + (state == null ? " state=null" : " skyFactor=" + state.skyFactor + " brightness=" + state.brightness)
+-            );
+-            lightmapClockReads = 0;
+-            lightmapSampled = 0;
+-            lightmapSkipped = 0;
+-            CustomTimeController.resetOverrideCount();
+-         }
+-      }
+-   }
+-
+    private Hooks() {
+    }
+@@ -193,9 +154,6 @@
+             } else if (action == 1 && KeyBindings.matchesBrightness(event) && idleInGame(mc)) {
+                BrightnessController.toggle();
+                return false;
+-            } else if (action == 1 && KeyBindings.matchesTimePreset(event) && mc != null && mc.level != null && kr.girinworld.core.ClientCompat.screen(mc) == null) {
+-               CustomTimeController.cyclePreset();
+-               return false;
+             } else {
+                return false;
+             }
+@@ -236,9 +194,6 @@
+       } else if (hit.test("brightness")) {
+          BrightnessController.toggle();
+          return true;
+-      } else if (hit.test("time")) {
+-         CustomTimeController.cyclePreset();
+-         return true;
+       } else {
+          return false;
+       }
+@@ -431,45 +386,13 @@
+    }
+ 
+    public static boolean onLightmapExtractBegin(LightmapRenderStateExtractor self, LightmapRenderState state, float partialTick) {
+-      try {
+-         lightmapClockBase = CustomTimeController.overrideCount();
+-         CustomTimeController.beginTimedRender();
+-         if (CustomTimeController.enabled()) {
+-            forceLightmapResample(self);
+-         }
+-      } catch (Throwable t) {
+-         CoreLog.error("onLightmapExtractBegin failed", t);
+-      }
+-
+       return false;
+    }
+ 
+-   private static void forceLightmapResample(LightmapRenderStateExtractor extractor) {
+-      if (!lightmapReflectionInit) {
+-         lightmapReflectionInit = true;
+-
+-         try {
+-            lightmapNeedsUpdate = LightmapRenderStateExtractor.class.getDeclaredField("needsUpdate");
+-            lightmapNeedsUpdate.setAccessible(true);
+-         } catch (Throwable t) {
+-            CoreLog.error("lightmap needsUpdate reflection failed", t);
+-         }
+-      }
+-
+-      if (lightmapNeedsUpdate != null && extractor != null) {
+-         try {
+-            lightmapNeedsUpdate.setBoolean(extractor, true);
+-         } catch (Throwable var2) {
+-         }
+-      }
+-   }
+-
+    public static void onLightmapExtract(LightmapRenderState state) {
+       long t0 = HookProfiler.start();
+ 
+       try {
+-         CustomTimeController.endTimedRender();
+-         logLightmapDiag(state);
+          if (state != null) {
+             boolean on = BrightnessController.isActive();
+             if (on) {
+@@ -516,32 +439,16 @@
+    }
+ 
+    public static boolean onExtractBegin(DeltaTracker delta, boolean renderLevel) {
+-      try {
+-         extractStart = HookProfiler.start();
+-         CustomTimeController.beginTimedRender();
+-      } catch (Throwable t) {
+-         CoreLog.error("onExtractBegin failed", t);
+-      }
+-
++      extractStart = HookProfiler.start();
+       return false;
+    }
+ 
+    public static void onExtractEnd() {
+-      try {
+-         CustomTimeController.endTimedRender();
+-      } catch (Throwable t) {
+-         CoreLog.error("onExtractEnd failed", t);
+-      } finally {
+-         HookProfiler.end(CustomTimeController.enabled() ? "H19.extract.timeON" : "H19.extract.timeOFF", extractStart);
+-      }
++      HookProfiler.end("H19.extract", extractStart);
+    }
+ 
+    public static long skyClockTime(long vanillaTicks) {
+-      try {
+-         return CustomTimeController.clockTime(vanillaTicks);
+-      } catch (Throwable t) {
+-         return vanillaTicks;
+-      }
++      return vanillaTicks;
+    }
+@@ -665,14 +572,7 @@
+ 
+    public static void onFrameEnd() {
+       long t0 = HookProfiler.start();
+-
+-      try {
+-         CustomTimeController.clearFlag();
+-      } catch (Throwable t) {
+-         CoreLog.error("onFrameEnd failed", t);
+-      } finally {
+-         HookProfiler.end("H10.frameEnd", t0);
+-      }
++      HookProfiler.end("H10.frameEnd", t0);
+    }
