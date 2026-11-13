@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'mods/yoonseul-helper-src.zip'
+      - 'mods/yoondding-0.3.0/**'
       - '.github/workflows/build-yoondding.yml'
 
 permissions:
@@ -26,19 +27,22 @@ jobs:
         run: |
           mkdir -p build/yoondding
           unzip -q mods/yoonseul-helper-src.zip -d build/yoondding
+      - name: Apply Yoondding 0.3.0 sources
+        shell: bash
+        run: cp -R mods/yoondding-0.3.0/. build/yoondding/
       - name: Test and build Yoondding
         working-directory: build/yoondding
         run: gradle :fabric:test :fabric:build --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: yoondding-fabric-0.2.4
-          path: build/yoondding/fabric/build/libs/yoondding-fabric-0.2.4.jar
+          name: yoondding-fabric-0.3.0
+          path: build/yoondding/fabric/build/libs/yoondding-fabric-0.3.0.jar
           if-no-files-found: error
-      - name: Publish Yoondding 0.2.4
+      - name: Publish Yoondding 0.3.0
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.2.4.jar
-          gh release create yoondding-v0.2.4 --title "윤띵 0.2.4" --notes "윤띵 0.2.4입니다.\n\n- 기린월드 위키에 없는 금고·스킬 수리 비용·바다의 가호 설정 제거\n- 이체 표기를 사용자 간 송금 기준으로 정리\n- 플리마켓 수수료 선택지를 1%·2%·3%로 제한\n- /낙인 및 /nakin 원작 명령어 제거"
-          gh release upload yoondding-v0.2.4 "$JAR"
+          JAR=build/yoondding/fabric/build/libs/yoondding-fabric-0.3.0.jar
+          gh release create yoondding-v0.3.0 --title "윤띵 0.3.0" --latest=false --notes "윤띵 0.3.0입니다.\n\n- 기린월드 기준 거래 테스트로 정리\n- 테스트 거래를 영수증 HUD와 장부에 즉시 반영\n- 내역 스크롤바 클릭 시 관리 탭으로 넘어가던 문제 수정\n- 스크롤 손잡이 좌클릭 드래그 지원\n- config/yoonseul-ledger 및 config/nakin 자료를 config/yoondding으로 이전\n- 파일명을 yoondding-fabric으로 통일"
+          gh release upload yoondding-v0.3.0 "$JAR"

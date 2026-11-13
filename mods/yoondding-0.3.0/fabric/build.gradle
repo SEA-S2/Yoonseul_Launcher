@@ -1,0 +1,118 @@
+plugins {
+    // 26.1 은 비난독화 — 매핑·리맵이 없는 새 플러그인(net.fabricmc.fabric-loom)을 쓴다.
+    //   modImplementation/remapJar 대신 implementation/jar.
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = rootProject.mod_version
+group = rootProject.maven_group
+
+base {
+    archivesName = 'yoondding-fabric'
+}
+
+repositories {
+    maven {
+        name = 'Xander Maven'
+        url = 'https://maven.isxander.dev/releases'
+    }
+    mavenCentral()
+}
+
+// 공유 코어(common)를 이 로더의 소스로 포함 — MC 의존성 0 이므로 안전
+sourceSets.main.java.srcDir rootProject.file('common/src/main/java')
+
+// 업데이터 신원 파일 — ModUpdater 가 JAR 안에서 읽어 자기 버전·저장소·파일명 규칙을 안다.
+//   ⚠️ prefix + 버전 + ".jar" 가 릴리즈 asset 이름과 정확히 일치해야 한다
+//      (예: nakin-fabric- + 0.1.0 + .jar). archivesName 과 같은 값을 쓴다.
+sourceSets.main.resources.srcDir layout.buildDirectory.dir('generated/updaterResources')
+tasks.register('generateUpdaterIdentity') {
+    def archives = base.archivesName
+    def mcVersion = rootProject.minecraft_version
+    def modVersion = rootProject.mod_version
+    def dest = layout.buildDirectory.file('generated/updaterResources/META-INF/nakin-update.properties')
+    outputs.upToDateWhen { false }
+    doLast {
+        // prefix 가 실제 산출물 이름과 어긋나면 릴리즈를 내도 업데이트가 '조용히' 안 잡힌다.
+        def expected = archives.get() + '-'
+        if (expected != 'yoondding-fabric-') {
+            throw new GradleException("업데이터 prefix 불일치: archivesName=${archives.get()} " +
+                    "→ prefix 를 '${expected}' 로 맞추세요")
+        }
+        def f = dest.get().asFile
+        f.parentFile.mkdirs()
+        f.text = "modId=yoonseul_ledger\n" +
+                "loader=fabric\n" +
+                "minecraft=${mcVersion}\n" +
+                "version=${modVersion}\n" +
+                "repository=SEA-S2/Yoonseul_Launcher\n" +
+                "prefix=yoondding-fabric-\n"
+    }
+}
+tasks.named('processResources') { dependsOn 'generateUpdaterIdentity' }
+
+// 클라이언트 게임테스트 — 실제 게임을 띄워 싱글 월드에서 HUD·정산창·파서를 검증(./gradlew runClientGameTest)
+// 게임테스트용 게임은 메모리를 적게 — 사용자 마크와 동시에 돌면 PC 메모리(페이징 파일)가 모자라 뜨다 죽었다
+loom {
+    runs {
+        configureEach {
+            vmArgs "-Xms256m", "-Xmx1536m"
+        }
+    }
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "yoonseul-ledger-gametest"
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // 설정 UI (screen 빌드에만 사용, 저장은 자체 Gson). 선택 의존성 — 없으면 설정 화면만 빠진다.
+    implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+
+    // 오프라인 파서/엔진 테스트 — MC 런타임 불필요
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+    useJUnitPlatform()
+    // 로그 재생 점검(LogReplayTest) — -Dnakin.logs=... 를 줄 때만 돈다
+    for (key in ['nakin.logs', 'nakin.replayOut', 'nakin.self']) {
+        def v = System.getProperty(key)
+        if (v != null) systemProperty key, v
+    }
+}
+
+processResources {
+    def v = project.version
+    inputs.property "version", v
+    filesMatching("fabric.mod.json") {
+        expand "version": v
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = 25
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+    from(rootProject.file("LICENSE")) {
+        rename { "${it}_nakin" }
+    }
+}
