@@ -6,6 +6,7 @@ on:
     branches: [girinworld-core]
     paths:
       - 'mods/girinworld-core-src.zip'
+      - 'tools/remove-custom-time.patch'
       - '.github/workflows/build-girinworld-core.yml'
 
 permissions:
@@ -25,6 +26,17 @@ jobs:
           gradle-version: '9.7.1'
       - name: Unpack source
         run: unzip -q mods/girinworld-core-src.zip -d build-src
+      - name: Remove custom time feature
+        working-directory: build-src/girinworld-core
+        run: git apply ../../tools/remove-custom-time.patch
+      - name: Verify custom time removal
+        working-directory: build-src/girinworld-core
+        shell: bash
+        run: |
+          ! grep -R -E '사용자 지정 시간|CustomTimeController|TIME_PRESET|matchesTimePreset' \
+            src/main/java/kr/girinworld/core/Hooks.java \
+            src/main/java/kr/girinworld/core/KeyBindings.java \
+            src/main/java/kr/girinworld/core/features/settings/ModuleRegistry.java
       - name: Build Minecraft 26.2 core
         working-directory: build-src/girinworld-core
         run: gradle build --stacktrace
