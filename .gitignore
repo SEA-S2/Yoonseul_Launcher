@@ -26,3 +26,8 @@ node_modules/
 
 # 테스트가 생성하는 임시 산출물 (run_all.py 가 매번 재생성)
 tests/_plain.js
+
+# Generated required-mod payloads (prepared by the release workflow)
+assets/girin-required-seed.zip
+assets/girin-required-index.json
+assets/girin-download-cache/

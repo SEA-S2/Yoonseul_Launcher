@@ -2644,3 +2644,387 @@ class Api:
         except Exception as e:
             return {"ok": False, "code": getattr(e, "code", "skin_error"),
                     "message": getattr(e, "message", None) or str(e)}
+
+
+# Girinworld required-mod management and saved connection preference.
+import json as _gr_json
+import zipfile as _gr_zip
+import tempfile as _gr_temp
+import hashlib as _gr_hash
+import base64 as _gr_b64
+
+_GR_LOCK = threading.RLock()
+_GR_INDEX = _gr_json.load(open(_resource('assets/girin-required-index.json'), encoding='utf-8'))
+_GR_ITEMS = {m['id']: m for m in _GR_INDEX}
+
+def _gr_catalog():
+    for seed in _GR_INDEX:
+        mid = seed['id']
+        mod = MOD_BY_ID.get(mid)
+        if mod is None:
+            mod = {'id': mid}
+            MODS.append(mod)
+        mod.update(name=seed['name'], slug=None, bundled_asset=None,
+                   category='필수', required=True, tags=['필수'], hidden=False,
+                   description=seed['description'], exclusive_group=None,
+                   dependencies=seed['dependencies'], off_policy=False, banned=False,
+                   author=seed['author'], version=seed['version'],
+                   size_label=seed['size_label'])
+    # Mutate shared objects so the original api and catalog keep the same references.
+    MODS.sort(key=lambda m: 0 if m['id'] in _GR_ITEMS else 1)
+    MOD_BY_ID.clear()
+    MOD_BY_ID.update({m['id']: m for m in MODS})
+    VISIBLE_MODS[:] = [m for m in MODS if not m.get('hidden', False)]
+
+_gr_original_policy = mod_catalog.apply_policy
+
+def _gr_policy(*args, **kwargs):
+    result = _gr_original_policy(*args, **kwargs)
+    _gr_catalog()
+    return result
+
+mod_catalog.apply_policy = _gr_policy
+_gr_catalog()
+
+def _gr_find(mods_dir, issues=None):
+    found = {}
+    for filename in sorted(os.listdir(mods_dir)):
+        if not filename.lower().endswith('.jar'):
+            continue
+        try:
+            with _gr_zip.ZipFile(os.path.join(mods_dir, filename)) as jar:
+                meta = _gr_json.loads(jar.read('fabric.mod.json'))
+            fid = meta.get('id')
+            for mid, seed in _GR_ITEMS.items():
+                if str(fid).replace('-', '_') == seed['fabric_id'].replace('-', '_'):
+                    found.setdefault(mid, []).append((filename, str(meta.get('version', '?'))))
+        except (OSError, ValueError, KeyError, _gr_zip.BadZipFile) as exc:
+            if issues is not None:
+                issues.append({'filename': filename, 'error': type(exc).__name__ + ': ' + str(exc)})
+            continue
+    return found
+
+def _gr_settings(self):
+    root = os.path.dirname(self._mods_dir)
+    with _gr_zip.ZipFile(_resource('assets/girin-required-seed.zip')) as bundle:
+        for src, rel in [('config/giraffe-updater.json', 'config/giraffe-updater.json'),
+                         ('설정은 처음 설치할 때만/config/emotecraft.json', 'config/emotecraft.json'),
+                         ('설정은 처음 설치할 때만/options.txt', 'options.txt')]:
+            target = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            # Exclusive create preserves both existing and concurrently-created settings.
+            try:
+                with open(target, 'xb') as dst:
+                    dst.write(bundle.read(src))
+            except FileExistsError:
+                pass
+
+def _gr_record(self, mid, entry):
+    filename, version = entry
+    self._registry.record_install(mid, filename, version, None)
+    self._mod_statuses[mid] = 'installed'
+    self._mod_versions[mid] = {'installed': version, 'latest': version}
+
+def _gr_install(self, mid, found=None):
+    with _GR_LOCK:
+        seed = _GR_ITEMS[mid]
+        os.makedirs(self._mods_dir, exist_ok=True)
+        existing = (found if found is not None else _gr_find(self._mods_dir)).get(mid, [])
+        if len(existing) > 1:
+            return False, seed['name'] + '의 중복 JAR가 있습니다. 게임 폴더에서 중복 파일을 정리해주세요.'
+        if existing:
+            _gr_record(self, mid, existing[0])
+            self._last_install = {'version': existing[0][1], 'requires': []}
+            return True, None
+        if self.game_running().get('running'):
+            return False, '게임을 종료한 뒤 필수모드를 설치해주세요.'
+        temporary = None
+        try:
+            with _gr_zip.ZipFile(_resource('assets/girin-required-seed.zip')) as bundle:
+                payload = bundle.read(seed['member'])
+            if _gr_hash.sha256(payload).hexdigest() != seed['sha256']:
+                raise ValueError('필수모드 원본 파일 검증 실패')
+            target = os.path.join(self._mods_dir, seed['filename'])
+            if os.path.exists(target):
+                raise ValueError('같은 이름의 손상되었거나 다른 모드 파일이 있습니다: ' + seed['filename'])
+            with _gr_temp.NamedTemporaryFile(dir=self._mods_dir, prefix='.girin-required-', suffix='.tmp', delete=False) as dst:
+                temporary = dst.name
+                dst.write(payload)
+            os.replace(temporary, target)
+            temporary = None
+            _gr_record(self, mid, (seed['filename'], seed['version']))
+            self._last_install = {'version': seed['version'], 'requires': []}
+            _gr_settings(self)
+            preflight.write_log('[기린 필수모드 설치] ' + seed['name'] + ' ' + seed['version'])
+            return True, None
+        except Exception as exc:
+            preflight.write_log('[기린 필수모드 설치 실패] ' + seed['name'] + ': ' + str(exc))
+            return False, str(exc)
+        finally:
+            if temporary and os.path.isfile(temporary):
+                os.remove(temporary)
+
+def _gr_file_hash(path):
+    with open(path, 'rb') as stream:
+        return _gr_hash.sha256(stream.read()).hexdigest()
+
+def _gr_stable_version(version):
+    import re as _gr_re
+    # Compare only unambiguous stable numeric versions. Do not guess prerelease order.
+    match = _gr_re.fullmatch(r'(\d+(?:\.\d+)*)(?:\+[0-9A-Za-z._-]+)?', str(version))
+    if not match:
+        return None
+    parts = tuple(int(n) for n in match.group(1).split('.'))
+    while len(parts) > 1 and parts[-1] == 0:
+        parts = parts[:-1]
+    return parts
+
+def _gr_game_active(self):
+    if self.game_running().get('running'):
+        return True
+    if sys.platform != 'win32':
+        return False
+    # The launcher may have been restarted while its game was still running.
+    # Conservatively postpone cleanup if any Java process is present.
+    try:
+        import ctypes as _gr_ct
+        from ctypes import wintypes as _gr_wt
+        class ProcessEntry(_gr_ct.Structure):
+            _fields_ = [('dwSize', _gr_wt.DWORD), ('cntUsage', _gr_wt.DWORD),
+                        ('th32ProcessID', _gr_wt.DWORD), ('th32DefaultHeapID', _gr_ct.c_size_t),
+                        ('th32ModuleID', _gr_wt.DWORD), ('cntThreads', _gr_wt.DWORD),
+                        ('th32ParentProcessID', _gr_wt.DWORD), ('pcPriClassBase', _gr_wt.LONG),
+                        ('dwFlags', _gr_wt.DWORD), ('szExeFile', _gr_wt.WCHAR * 260)]
+        kernel = _gr_ct.WinDLL('kernel32', use_last_error=True)
+        kernel.CreateToolhelp32Snapshot.argtypes = [_gr_wt.DWORD, _gr_wt.DWORD]
+        kernel.CreateToolhelp32Snapshot.restype = _gr_wt.HANDLE
+        kernel.Process32FirstW.argtypes = [_gr_wt.HANDLE, _gr_ct.POINTER(ProcessEntry)]
+        kernel.Process32NextW.argtypes = [_gr_wt.HANDLE, _gr_ct.POINTER(ProcessEntry)]
+        kernel.CloseHandle.argtypes = [_gr_wt.HANDLE]
+        handle = kernel.CreateToolhelp32Snapshot(2, 0)
+        if handle == _gr_ct.c_void_p(-1).value:
+            return True
+        try:
+            entry = ProcessEntry()
+            entry.dwSize = _gr_ct.sizeof(entry)
+            more = kernel.Process32FirstW(handle, _gr_ct.byref(entry))
+            if not more:
+                return True
+            while more:
+                if entry.szExeFile.lower() in ('java.exe', 'javaw.exe'):
+                    return True
+                more = kernel.Process32NextW(handle, _gr_ct.byref(entry))
+            return False
+        finally:
+            kernel.CloseHandle(handle)
+    except Exception:
+        return True
+
+def _gr_clean_older(self, mid, entries):
+    versions = [_gr_stable_version(entry[1]) for entry in entries]
+    if any(version is None for version in versions):
+        return entries
+    width = max(map(len, versions))
+    versions = [v + (0,) * (width - len(v)) for v in versions]
+    newest = max(versions)
+    winners = [entry for entry, version in zip(entries, versions) if version == newest]
+    if len(winners) != 1:
+        return entries
+    winner = winners[0]
+    # Validate the complete surviving archive before moving any older version away.
+    try:
+        with _gr_zip.ZipFile(os.path.join(self._mods_dir, winner[0])) as jar:
+            if jar.testzip() is not None:
+                return entries
+        if _gr_game_active(self):
+            return entries
+        import uuid as _gr_uuid
+        backup = os.path.join(os.path.dirname(self._mods_dir), 'launcher-backups', 'girin-required')
+        os.makedirs(backup, exist_ok=True)
+        for entry in entries:
+            if entry == winner:
+                continue
+            source = os.path.join(self._mods_dir, entry[0])
+            target = os.path.join(backup, entry[0])
+            if os.path.exists(target):
+                target += '.' + _gr_uuid.uuid4().hex
+            # A locked file is left in place; launch remains blocked with its filename.
+            try:
+                os.rename(source, target)
+                preflight.write_log('[기린 구버전 백업] ' + entry[0] + ' → ' + target)
+            except OSError as exc:
+                self._gr_cleanup_retry = True
+                preflight.write_log('[기린 구버전 백업 보류] ' + entry[0] + ': ' + str(exc))
+    except (OSError, ValueError, _gr_zip.BadZipFile) as exc:
+        preflight.write_log('[기린 구버전 확인 실패] ' + str(exc))
+    return _gr_find(self._mods_dir).get(mid, [])
+
+def _gr_sync(self, install_missing=False):
+    # Scans and launch checks only recognize installed files. Never seed missing JARs.
+    if not self._registry or not self._mods_dir:
+        if not self.ensure_ready().get('ready'):
+            return
+    with _GR_LOCK:
+        os.makedirs(self._mods_dir, exist_ok=True)
+        found = _gr_find(self._mods_dir)
+        for mid in _GR_ITEMS:
+            entries = found.get(mid, [])
+            if len(entries) > 1 and not _gr_game_active(self):
+                entries = _gr_clean_older(self, mid, entries)
+            if len(entries) == 1:
+                _gr_record(self, mid, entries[0])
+            else:
+                self._registry.record_remove(mid)
+                self._mod_statuses[mid] = 'not_installed'
+                self._mod_versions.pop(mid, None)
+
+_gr_original_single = Api._install_single
+
+def _gr_single(self, mod_id):
+    if mod_id in _GR_ITEMS:
+        return _gr_install(self, mod_id)
+    return _gr_original_single(self, mod_id)
+
+Api._install_single = _gr_single
+_gr_original_scan = Api.scan_mods
+
+def _gr_scan(self):
+    with _GR_LOCK:
+        _gr_sync(self)
+        result = _gr_original_scan(self)
+        # Preserve locally-read versions even if Modrinth cannot identify server JARs.
+        _gr_sync(self, install_missing=False)
+        if result.get('ok'):
+            result['statuses'].update({mid: self._mod_statuses.get(mid, 'not_installed') for mid in _GR_ITEMS})
+            result.setdefault('versions', {}).update({mid: self._mod_versions[mid] for mid in _GR_ITEMS if mid in self._mod_versions})
+        return result
+
+Api.scan_mods = _gr_scan
+_gr_original_can_launch = Api.can_launch
+
+def _gr_can_launch(self):
+    if not self._registry or not self._mods_dir:
+        ready = self.ensure_ready()
+        if not ready.get('ready'):
+            return {'ok': False, 'missing': [], 'message': ready.get('reason', '준비 실패')}
+    # Keep the actual-file check and launch decision under the same lock.
+    # The registry is UI bookkeeping, not proof that a server JAR is absent.
+    with _GR_LOCK:
+        _gr_sync(self)
+        self._ensure_hidden_required()
+        issues = []
+        found = _gr_find(self._mods_dir, issues)
+        missing = []
+        details = []
+        for mod in MODS:
+            if not mod.get('required'):
+                continue
+            mid = mod['id']
+            if mid in _GR_ITEMS:
+                matches = found.get(mid, [])
+                if len(matches) == 1:
+                    _gr_record(self, mid, matches[0])
+                    continue
+                if matches:
+                    reason = '동일 모드의 JAR가 여러 개 있습니다: ' + ', '.join(f[0] for f in matches)
+                else:
+                    related = [i for i in issues if mid.replace('-', '') in i['filename'].replace('-', '').replace('_', '')]
+                    reason = ('파일 읽기 실패: ' + '; '.join(i['filename'] + ' (' + i['error'] + ')' for i in related)) if related else '설치된 JAR를 찾지 못했습니다.'
+            elif self._registry.is_installed(mid):
+                continue
+            else:
+                reason = '설치된 파일을 찾지 못했습니다.'
+            missing.append({'id': mid, 'name': mod.get('name', mid)})
+            details.append(mod.get('name', mid) + ': ' + reason)
+        report = {'launcher': app_meta.APP_VERSION, 'mods_dir': os.path.abspath(self._mods_dir),
+                  'found': found, 'read_errors': issues, 'missing': missing}
+        try:
+            import datetime as _gr_dt
+            report['time'] = _gr_dt.datetime.now().isoformat(timespec='seconds')
+            with open(os.path.join(os.path.dirname(self._mods_dir), 'launcher-required-check.log'), 'a', encoding='utf-8') as logfile:
+                logfile.write(_gr_json.dumps(report, ensure_ascii=False) + '\n')
+        except OSError:
+            pass
+        if missing:
+            return {'ok': False, 'missing': missing,
+                    'message': '필수모드 확인 실패\n' + '\n'.join(details)}
+        return {'ok': True, 'missing': [], 'message': ''}
+
+Api.can_launch = _gr_can_launch
+_gr_original_media = Api.get_mod_media
+
+def _gr_media(self):
+    result = _gr_original_media(self)
+    result.setdefault('media', {}).update({seed['id']: {
+        'icon_url': seed.get('icon'), 'image': seed.get('icon'),
+        'author': seed['author']
+    } for seed in _GR_INDEX})
+    return result
+
+Api.get_mod_media = _gr_media
+# Lightweight, local-only refresh used by the UI after focus, launch and directory changes.
+def _gr_signature(self):
+    files = []
+    for name in sorted(os.listdir(self._mods_dir)):
+        if name.lower().endswith('.jar'):
+            try:
+                stat = os.stat(os.path.join(self._mods_dir, name))
+                files.append((name, stat.st_size, stat.st_mtime_ns))
+            except OSError:
+                files.append((name, None, None))
+    return (_gr_game_active(self), tuple(files))
+
+def _gr_refresh_required(self, force=False):
+    if not self._registry or not self._mods_dir:
+        ready = self.ensure_ready()
+        if not ready.get('ready'):
+            return {'ok': False, 'message': ready.get('reason', '준비 실패')}
+    with _GR_LOCK:
+        signature = _gr_signature(self)
+        if not force and signature == getattr(self, '_gr_last_signature', None):
+            return {'ok': True, 'changed': False}
+        self._gr_cleanup_retry = False
+        _gr_sync(self)
+        self._gr_last_signature = None if self._gr_cleanup_retry else _gr_signature(self)
+        return {'ok': True, 'changed': True,
+                'statuses': {mid: self._mod_statuses.get(mid, 'not_installed') for mid in _GR_ITEMS},
+                'versions': {mid: self._mod_versions.get(mid, {}) for mid in _GR_ITEMS}}
+
+Api.refresh_required_mods = _gr_refresh_required
+
+# Saved game connection preference; defaults to auto-connect for existing installations.
+def _gr_get_game_connection(self):
+    return {'ok': True, 'auto_connect': self._config.get('girin_auto_connect', True) is not False,
+            'server_host': app_meta.SERVER_HOST}
+
+def _gr_set_game_connection(self, enabled):
+    if not isinstance(enabled, bool):
+        return {'ok': False, 'message': 'ON 또는 OFF를 선택해주세요.'}
+    with _GR_LOCK:
+        previous = self._config.get('girin_auto_connect', None)
+        self._config['girin_auto_connect'] = enabled
+        try:
+            preflight.save_config(self._config)
+            # The legacy save helper silently catches I/O errors; confirm persistence.
+            with open(preflight._config_path(), encoding='utf-8') as saved:
+                persisted = _gr_json.load(saved)
+            if persisted.get('girin_auto_connect') is not enabled:
+                raise OSError('설정 저장 확인 실패')
+        except (OSError, ValueError) as exc:
+            if previous is None:
+                self._config.pop('girin_auto_connect', None)
+            else:
+                self._config['girin_auto_connect'] = previous
+            return {'ok': False, 'message': '자동 접속 설정을 저장하지 못했습니다. 다시 시도해주세요.'}
+    return _gr_get_game_connection(self)
+
+Api.get_game_connection = _gr_get_game_connection
+Api.set_game_connection = _gr_set_game_connection
+_gr_original_client_launch = Api.client_launch
+
+def _gr_client_launch(self, quick_connect=None):
+    enabled = self._config.get('girin_auto_connect', True) is not False
+    # Preserve an explicit one-time caller override; the normal Play button uses the saved value.
+    return _gr_original_client_launch(self, quick_connect=enabled if quick_connect is None else bool(quick_connect))
+
+Api.client_launch = _gr_client_launch

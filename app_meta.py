@@ -6,7 +6,7 @@ tkinter 파일을 쓰지 않으므로 여기로 분리해 백엔드/브릿지가
 
 APP_NAME = "윤슬 런처"
 APP_NAME_EN = "Yoonseul_Launcher"
-APP_VERSION = "2.7.1"  # 사용자 지정 시간 기능 제거
+APP_VERSION = "2.7.2"
 # 릴리스 채널: "beta" 면 UI 에 베타 표식을 붙인다. 정식 배포 시 "release" 로.
 APP_CHANNEL = "release"
 
@@ -30,7 +30,7 @@ LOADER = "fabric"
 
 # 윤슬마을 서버 (정식 배포 전에 실제 주소로 교체)
 # 빈 문자열이면 서버 상태 조회와 자동 접속을 사용하지 않습니다.
-SERVER_HOST = ""
+SERVER_HOST = "giraffemc.com"
 SERVER_PORT = 25565
 
 # 허용 모드 원격 목록. 운영자가 관리 도구로 고치면

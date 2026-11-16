@@ -574,7 +574,7 @@ const DATA = {
     {id:"makeup-ultra-fast",title:"Makeup Ultra Fast",author:"MakeUp Team",downloads:"7.7M",state:"install",cat:"performance",color:"linear-gradient(140deg,#6DBE45,#3AD6D6)",blurb:"Shader visuals tuned for low-end hardware without gutting the look.",badges:[{label:"Iris",tone:"amethyst"},{label:"Performance",tone:"diamond"}]},
   ],
   news:[
-    {tag:"업데이트",tone:"grass",title:"윤슬 런처 2.7.1",body:"사용자 지정 시간 기능을 제거하고, 이전 윤띵 관리 기록을 정리해 별도 설치 모드로 정상 표시되도록 개선했습니다."},
+    {tag:"업데이트",tone:"grass",title:"윤슬 런처 2.7.2",body:"기린 필수모드 설치·새 버전 인식·구버전 백업과 카드 자동 갱신을 지원합니다. 설정에서 기린월드 자동 접속을 켜거나 끌 수 있습니다."},
     {tag:"알림",tone:"gold",title:"개발자 알림",body:"이 런처는 Garamisme님이 개발한 동글랜드 런처의 MIT 공개 소스를 기반으로 제작된 윤슬마을 전용 비공식 런처입니다. Mojang/Microsoft 및 기린월드의 공식 제품이 아닙니다. 오류 문의는 설정 탭 하단에 지원 채널을 이용해 주세요. 비공식 경로로 재배포된 파일은 지원하지 않습니다."},
   ],
   system:[
@@ -1005,6 +1005,7 @@ function systemScreen(){
       +'</div>'
       +memCardHTML()
       +winCardHTML()
+      +girinConnectionCardHTML()
       +behaviorCardHTML()
       +'<div class="tile card-pad">'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+ic("palette",16)+'<span class="eyebrow">테마</span></div>'
@@ -3994,6 +3995,93 @@ async function initV3Preview(){
 }
 
 initApp();
+</script>
+<script>
+/* Private test: refresh required cards from local files, without a full network scan. */
+let __girinRefreshBusy = false;
+async function refreshGirinRequired(force=false){
+  if(__girinRefreshBusy || !Bridge.live || state.booting) return;
+  if([...DATA.mods, ...(state.curatedMods||[])].some(m=>m.required && m._busy)) return;
+  __girinRefreshBusy=true;
+  try{
+    const result=await Bridge.api.refresh_required_mods(!!force);
+    if(!result || !result.ok || !result.changed) return;
+    const changed=new Set();
+    for(const list of [DATA.mods, state.curatedMods||[]]){
+      for(const m of list){
+        const status=(result.statuses||{})[m.id];
+        if(!status || m._busy) continue;
+        const next=status==='not_installed'?'install':status;
+        const version=((result.versions||{})[m.id]||{}).installed||null;
+        if(m.state!==next || m._installedVersion!==version || state.installs[m.title]) changed.add(m.id);
+        m.state=next; m._installedVersion=version;
+        if(version){ m._latest=version; m._version=version; }
+        else { m._latest=null; m._version=null; }
+        delete state.installs[m.title];
+      }
+    }
+    if(changed.size){
+      for(const m of DATA.mods){
+        if(changed.has(m.id)){
+          refreshItemInPlace(m,'mods');
+          if(state.detail && state.detail.title===m.title) refreshModalAction(m);
+        }
+      }
+      renderSidebar();
+    }
+  }catch(error){ console.debug('Required card refresh deferred',error); }
+  finally{ __girinRefreshBusy=false; }
+}
+const __girinOriginalLaunch=doLaunch;
+doLaunch=async function(){
+  try{ return await __girinOriginalLaunch.apply(this,arguments); }
+  finally{ await refreshGirinRequired(true); }
+};
+window.addEventListener('focus',()=>refreshGirinRequired(true));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) refreshGirinRequired(true);});
+window.__girinRequiredTimer=setInterval(()=>{if(!document.hidden) refreshGirinRequired(false);},2000);
+
+/* Saved game connection setting. */
+state.girinConnection={auto_connect:true,loaded:false,saving:false};
+function girinConnectionCardHTML(){
+  const s=state.girinConnection;
+  return '<div class="tile card-pad"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+ic('gamepad-2',16)+'<span class="eyebrow">게임 설정</span></div>'
+    +'<div class="settingrow" style="border-bottom:none;padding-bottom:0"><div style="flex:1"><div style="font-size:var(--text-base);font-weight:600;color:var(--text-strong)">기린월드 자동 접속</div>'
+    +'<div style="font-size:var(--text-sm);color:var(--text-muted);margin-top:2px">게임 실행 시 기린월드 서버로 바로 접속합니다. 끄면 싱글·멀티를 선택하는 메인 화면으로 열립니다.</div></div>'
+    +'<span data-girin-connect-label style="font-size:var(--text-sm);font-weight:700;margin:0 10px">'+(s.auto_connect?'ON':'OFF')+'</span>'
+    +'<button class="switch" data-girin-connect role="switch" aria-label="기린월드 자동 접속" aria-checked="'+s.auto_connect+'" data-on="'+s.auto_connect+'"'+(!s.loaded||s.saving?' disabled':'')+'><span class="knob"></span></button></div></div>';
+}
+function syncGirinConnection(){
+  const s=state.girinConnection, button=document.querySelector('[data-girin-connect]'), label=document.querySelector('[data-girin-connect-label]');
+  if(button){button.setAttribute('data-on',String(s.auto_connect));button.setAttribute('aria-checked',String(s.auto_connect));button.disabled=!s.loaded||s.saving;}
+  if(label)label.textContent=s.auto_connect?'ON':'OFF';
+}
+async function loadGirinConnection(){
+  if(!Bridge.live)return;
+  try{
+    const result=await Bridge.api.get_game_connection();
+    if(result&&result.ok){state.girinConnection.auto_connect=result.auto_connect!==false;state.girinConnection.loaded=true;syncGirinConnection();}
+    else flash((result&&result.message)||'자동 접속 설정을 불러오지 못했습니다.');
+  }catch(error){flash('자동 접속 설정을 불러오지 못했습니다.');}
+}
+async function toggleGirinConnection(){
+  const s=state.girinConnection;
+  if(!s.loaded||s.saving)return;
+  const next=!s.auto_connect;s.saving=true;syncGirinConnection();
+  try{
+    const result=await Bridge.api.set_game_connection(next);
+    if(result&&result.ok)s.auto_connect=result.auto_connect!==false;
+    else flash((result&&result.message)||'자동 접속 설정을 저장하지 못했습니다.');
+  }catch(error){flash('자동 접속 설정을 저장하지 못했습니다.');}
+  finally{s.saving=false;syncGirinConnection();}
+}
+const __girinOriginalSetNav=setNav;
+setNav=function(nav){const result=__girinOriginalSetNav.apply(this,arguments);if(nav==='system')loadGirinConnection();return result;};
+document.addEventListener('click',event=>{
+  if(event.target.closest('[data-girin-connect]')){event.preventDefault();event.stopPropagation();toggleGirinConnection();}
+},true);
+loadGirinConnection();
+
 </script>
 </body>
 </html>
