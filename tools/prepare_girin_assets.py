@@ -28,7 +28,7 @@ def verified(data, entry):
 
 
 def payload(entry):
-    cache = ASSETS / 'girin-download-cache' / entry['path']
+    cache = ROOT / '.girin-download-cache' / entry['path']
     if cache.is_file() and verified(cache.read_bytes(), entry):
         return cache.read_bytes()
     urls = [entry['url']]

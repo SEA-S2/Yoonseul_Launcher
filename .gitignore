@@ -30,4 +30,4 @@ tests/_plain.js
 # Generated required-mod payloads (prepared by the release workflow)
 assets/girin-required-seed.zip
 assets/girin-required-index.json
-assets/girin-download-cache/
+.girin-download-cache/
