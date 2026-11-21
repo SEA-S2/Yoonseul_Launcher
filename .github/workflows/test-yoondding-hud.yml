@@ -13,7 +13,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import zipfile
-          with zipfile.ZipFile("mods/yoondding-0.3.1-src.zip") as z:
+          with zipfile.ZipFile("mods/yoonseul-helper-src.zip") as z:
               for n in z.namelist():
                   if n.endswith(".java") and ("Command" in n or "Diagnostic" in n or "Report" in n or "BalanceSource" in n):
                       print("FILE", n)
