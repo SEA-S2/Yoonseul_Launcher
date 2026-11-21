@@ -1,0 +1,21 @@
+name: Yoondding HUD diagnostic test
+on:
+  push:
+    branches: [fix/yoondding-hud-diagnostics]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect report sources
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("mods/yoondding-0.3.1-src.zip") as z:
+              for n in z.namelist():
+                  if n.endswith(".java") and ("Command" in n or "Diagnostic" in n or "Report" in n or "BalanceSource" in n):
+                      print("FILE", n)
+                      print(z.read(n).decode())
+          PY
