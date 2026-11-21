@@ -1,0 +1,39 @@
+name: Test Yoondding Girin OBT
+on:
+  pull_request:
+    paths:
+      - 'mods/yoondding-obt-fix/**'
+      - '.github/workflows/test-yoondding-obt.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: build/yoondding-obt/.cache
+          key: yoondding-java25-minecraft26.2-fabric0.161.0-v1
+      - name: Prepare tested designs and OBT patch sources
+        run: |
+          mkdir -p build/yoondding-obt
+          unzip -q mods/yoondding-0.3.1-src.zip -d build/yoondding-obt
+          cp -R mods/yoondding-obt-fix/. build/yoondding-obt/
+      - name: Compile and verify protocol, configuration, HUD and final JAR
+        run: python build/yoondding-obt/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yoondding-fabric-0.3.2-test.2
+          path: |
+            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.2.jar
+            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.2.jar.sha256
+          if-no-files-found: error
