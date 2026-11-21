@@ -32,8 +32,8 @@ jobs:
         run: python build/yoondding-obt/build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: yoondding-fabric-0.3.2-test.1
+          name: yoondding-fabric-0.3.2-test.2
           path: |
-            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.1.jar
-            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.1.jar.sha256
+            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.2.jar
+            build/yoondding-obt/build/yoondding-fabric-0.3.2-test.2.jar.sha256
           if-no-files-found: error

@@ -15,7 +15,7 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '0.3.2-test.1'
+VERSION = '0.3.2-test.2'
 BASELINE_SHA256 = '35c922d80f785364dc2d5d51fdc5856e235dc81938cbc12994c4b8765c27c054'
 BASELINE = ROOT / 'baseline/yoondding-fabric-0.3.0.jar'
 CACHE = Path(os.environ.get('YOONDDING_BUILD_CACHE', ROOT / '.cache')).resolve()
@@ -70,10 +70,11 @@ def main():
     test_classes.mkdir()
     run(jdk/'javac', '--release', '25', '-encoding', 'UTF-8', '-cp', cp, '-d', classes, *sorted((ROOT/'src').rglob('*.java')))
     test_cp = str(classes) + os.pathsep + cp
-    run(jdk/'javac', '-encoding', 'UTF-8', '-cp', test_cp, '-d', test_classes, ROOT/'ReceiptDesignsCheck.java', ROOT/'GirinCurrencyCheck.java')
+    run(jdk/'javac', '-encoding', 'UTF-8', '-cp', test_cp, '-d', test_classes, ROOT/'ReceiptDesignsCheck.java', ROOT/'GirinCurrencyCheck.java', ROOT/'GirinFleaCheck.java')
     # Verify the compiled API surface, actual widget callbacks, persistence, and copy totals.
     run(jdk/'java', '-Xverify:all', '-cp', str(test_classes)+os.pathsep+test_cp, 'kr.aka.nakin.ui.ReceiptDesignsCheck')
     run(jdk/'java', '-Xverify:all', '-cp', str(test_classes)+os.pathsep+test_cp, 'kr.aka.nakin.core.GirinCurrencyCheck')
+    run(jdk/'java', '-Xverify:all', '-cp', str(test_classes)+os.pathsep+test_cp, 'kr.aka.nakin.core.GirinFleaCheck')
     replacement = {p.relative_to(classes).as_posix(): p.read_bytes() for p in classes.rglob('*.class')}
     replacement.update({p.relative_to(ROOT/'resources').as_posix(): p.read_bytes() for p in (ROOT/'resources').rglob('*') if p.is_file()})
     artifact = OUT/f'yoondding-fabric-{VERSION}.jar'
@@ -90,7 +91,7 @@ def main():
                 new.writestr(name, data)
     with zipfile.ZipFile(BASELINE) as old, zipfile.ZipFile(artifact) as new:
         assert new.testzip() is None
-        allowed = ('kr/aka/nakin/ui/GuiTex', 'kr/aka/nakin/ui/LedgerHud', 'kr/aka/nakin/ui/DtStatScreen', 'kr/aka/nakin/ui/TexButton', 'kr/aka/nakin/ui/TabButton', 'kr/aka/nakin/aggregate/ShareText', 'kr/aka/nakin/core/CurrencyParser', 'kr/aka/nakin/config/DtConfig', 'kr/aka/nakin/config/LedgerSettings', 'kr/aka/nakin/DtLedgerClient', 'kr/aka/nakin/watcher/ChatWatcher')
+        allowed = ('kr/aka/nakin/ui/GuiTex', 'kr/aka/nakin/ui/LedgerHud', 'kr/aka/nakin/ui/DtStatScreen', 'kr/aka/nakin/ui/TexButton', 'kr/aka/nakin/ui/TabButton', 'kr/aka/nakin/aggregate/ShareText', 'kr/aka/nakin/core/CurrencyParser', 'kr/aka/nakin/config/DtConfig', 'kr/aka/nakin/config/LedgerSettings', 'kr/aka/nakin/DtLedgerClient', 'kr/aka/nakin/watcher/ChatWatcher', 'kr/aka/nakin/watcher/BalanceWatcher')
         for name in old.namelist():
             if name not in ('fabric.mod.json', 'META-INF/nakin-update.properties') and not name.startswith(allowed):
                 assert new.read(name) == old.read(name), f'Unrelated code changed: {name}'
@@ -98,6 +99,7 @@ def main():
     # Test the final distributable too, rather than only the loose compiler output.
     run(jdk/'java', '-Xverify:all', '-cp', os.pathsep.join((str(test_classes), str(artifact), cp)), 'kr.aka.nakin.ui.ReceiptDesignsCheck')
     run(jdk/'java', '-Xverify:all', '-cp', os.pathsep.join((str(test_classes), str(artifact), cp)), 'kr.aka.nakin.core.GirinCurrencyCheck')
+    run(jdk/'java', '-Xverify:all', '-cp', os.pathsep.join((str(test_classes), str(artifact), cp)), 'kr.aka.nakin.core.GirinFleaCheck')
     checksum = hashlib.sha256(artifact.read_bytes()).hexdigest()
     (OUT/f'{artifact.name}.sha256').write_text(f'{checksum}  {artifact.name}\n')
     print(f'Built and checked {artifact.name}: {checksum}')

@@ -11,6 +11,11 @@ public final class GirinCurrencyParser {
     private static final Pattern MONEY = Pattern.compile("^([0-9][0-9,]*)\\s*쿠키\\s*\\(이\\)가\\s*(입금|출금)되었습니다\\.\\s*\\(잔액:\\s*([0-9][0-9,]*)\\)$");
     private static final Pattern SHOP = Pattern.compile("^\\[상점\\]\\s+(.+?)\\(을\\)를\\s+([0-9][0-9,]*)개\\s+(구매|판매)하여\\s+([0-9][0-9,]*)\\s*쿠키\\s*\\(이\\)가\\s*(입금|출금)되었습니다\\.\\s*\\(잔액:\\s*([0-9][0-9,]*)\\)$");
     private static final Pattern TOTAL = Pattern.compile("^\\[상점\\]\\s*모두 판매\\s*·\\s*([0-9][0-9,]*)종\\s*([0-9][0-9,]*)개를 판매하여\\s*([0-9][0-9,]*)\\s*쿠키\\s*\\(이\\)가 입금되었습니다\\.$");
+    private static final Pattern FLEA_BUY = Pattern.compile("^\\[플리마켓\\]\\s+(.+?)\\s+([0-9][0-9,]*)개를 구매했습니다\\.$");
+    private static final Pattern FLEA_TOTAL = Pattern.compile("^·\\s*개당\\s+[0-9][0-9,]*(?:\\.[0-9]+)?\\s*쿠키\\s*·\\s*합계\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*쿠키$");
+    private String fleaItem;
+    private int fleaQty, fleaLines;
+    private long fleaTime;
     private long saleAmount, saleQty, lastSale = Long.MIN_VALUE;
     private int saleRows;
 
@@ -23,6 +28,33 @@ public final class GirinCurrencyParser {
     private List<TradeSignal> parseChecked(String raw, long now) {
         if (raw == null) return null;
         String line = CLOCK.matcher(raw.replaceAll("§.", "").strip()).replaceFirst("");
+        // Player chat cannot open or complete a server receipt block.
+        if (line.contains("»") || line.matches("^<[^>]+>.*")) return null;
+        Matcher flea = FLEA_BUY.matcher(line);
+        if (flea.matches()) {
+            fleaItem = flea.group(1);
+            fleaQty = Math.toIntExact(number(flea.group(2)));
+            fleaLines = 0;
+            fleaTime = now;
+            return List.of();
+        }
+        if (fleaItem != null) {
+            if (now < fleaTime || now - fleaTime > 3000 || ++fleaLines > 8) {
+                clearFlea();
+            } else {
+                Matcher total = FLEA_TOTAL.matcher(line);
+                if (total.matches()) {
+                    long amount = new java.math.BigDecimal(total.group(1).replace(",", ""))
+                            .setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
+                    String item = fleaItem; int qty = fleaQty;
+                    clearFlea();
+                    if (amount == 0) return List.of();
+                    return List.of(TradeSignal.of(Flow.EXPENSE, "플리마켓", amount, qty, item + " 구매", raw));
+                }
+                if (line.matches("^·\\s*상점\\s+.+")) return List.of();
+                clearFlea();
+            }
+        }
         Matcher m = SHOP.matcher(line);
         if (m.matches()) {
             boolean income = m.group(3).equals("판매");
@@ -67,6 +99,8 @@ public final class GirinCurrencyParser {
         }
         return null;
     }
+
+    private void clearFlea() { fleaItem = null; fleaQty = 0; fleaLines = 0; }
 
     public void resetSales() {
         saleAmount = 0; saleQty = 0; saleRows = 0; lastSale = Long.MIN_VALUE;
