@@ -14,25 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify supplied release file
+      - name: Verify replacement file
         run: |
-          echo '1f9d0e38bdac130189b327bd3308b6d775a24ad947ce51349f750e60e5cc55cc  mods/releases/yoondding-fabric-0.3.2.jar' | sha256sum -c -
+          echo '0c839d258f9d1355e9134f9ece6f596a5bf9c76ab85b8d907b09ed863de8ac8d  mods/releases/yoondding-fabric-0.3.2.jar' | sha256sum -c -
           python3 - <<'PY'
           import json, zipfile
           with zipfile.ZipFile("mods/releases/yoondding-fabric-0.3.2.jar") as z:
               assert z.testzip() is None
               assert json.loads(z.read("fabric.mod.json"))["version"] == "0.3.2"
+              assert "version=0.3.2" in z.read("META-INF/nakin-update.properties").decode().splitlines()
           PY
           cd mods/releases
           sha256sum yoondding-fabric-0.3.2.jar > yoondding-fabric-0.3.2.jar.sha256
-      - name: Publish verified JAR
+      - name: Replace existing release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG=yoondding-v0.3.2
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --target "$GITHUB_SHA" --draft --title "윤띵 0.3.2" --notes-file RELEASE_NOTES_YOONDDING_0.3.2.md
-          fi
+          gh release view "$TAG" --json isDraft --jq '.isDraft == false' | grep -qx true
           gh release upload "$TAG" mods/releases/yoondding-fabric-0.3.2.jar mods/releases/yoondding-fabric-0.3.2.jar.sha256 --clobber
-          gh release edit "$TAG" --draft=false --latest=false --title "윤띵 0.3.2" --notes-file RELEASE_NOTES_YOONDDING_0.3.2.md
