@@ -63,6 +63,21 @@ public final class GirinCurrencyCheck {
         for(var row:rows)bucket.add(row);
         check(bucket.income==214 && bucket.expense==128 && bucket.netPnl()==86,"HUD/copy totals from real protocol");
         check(bucket.transferIn==0 && bucket.transferOut==0,"no invented transfer");
+        // 실제 기린월드 송금 문구: 금액 뒤 괄호에 있는 수수료나 +/- 표기를 이중 집계하지 않는다.
+        var transferParser=CurrencyParser.createDefault();
+        var received=one(transferParser,"[송금] 🐻 YEON1223 님으로부터 💬9쿠키(을) 송금받았습니다. (+9쿠키)",now+20000);
+        check(received.amount==9 && received.flow==TradeSignal.Flow.TRANSFER_IN,"incoming transfer must exclude profit");
+        var sent=one(transferParser,"[송금] 🐻 YEON1223 님에게 💬10쿠키(을)를 송금했습니다. (-10쿠키) (수수료: 1)",now+20001);
+        check(sent.amount==10 && sent.flow==TradeSignal.Flow.TRANSFER_OUT,"outgoing transfer must exclude profit");
+        var transfers=new TransferClassifier(cfg);
+        var inRecord=transfers.classify(received,TransferClassifier.CrossCheck.NONE,now+20002);
+        var outRecord=transfers.classify(sent,TransferClassifier.CrossCheck.NONE,now+20003);
+        check(inRecord.kind==TransactionRecord.Kind.TRANSFER_IN && outRecord.kind==TransactionRecord.Kind.TRANSFER_OUT,
+                "transfer records must not become ordinary income/expense");
+        check(transferParser.parse("[길라잡이] 송금 퀘스트를 완료했습니다.",now+20004).isEmpty(),
+                "quest completion is not another transfer");
+        check(transferParser.parse("300 쿠키 (이)가 입금되었습니다. (잔액: 18,860)",now+20005).size()==1,
+                "unrelated reward still uses normal deposit handler");
         System.out.println("PASS: OBT cookie protocol, comma amounts, shop qty, summary dedup, non-cookie/chat/item-reward rejection, repeated equal deposits, resolver and bucket totals, config migration and opt-out.");
     }
 }

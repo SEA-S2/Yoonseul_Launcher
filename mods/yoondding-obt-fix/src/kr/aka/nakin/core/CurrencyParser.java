@@ -287,12 +287,18 @@ public final class CurrencyParser {
                 m -> one(sig(Flow.EXPENSE, EXCHANGE, amount(m.group(3)), parseInt(m.group(2)),
                         m.group(1), null, null)));
 
-        // ── 송금(/pay) — 보내는 쪽은 원금 전액, 받는 쪽은 3% 차감된 실수령액 ──
-        rule("^(\\S+?)에게 " + AMT + "쿠키을 송금했습니다\\.",
-                m -> one(sig(Flow.EXPENSE, TRANSFER, amount(m.group(2)), 0, m.group(1) + "에게 송금", null, null)));
-        rule("^(\\S+?)에게서 " + AMT + "쿠키을 받았습니다\\.",
-                m -> one(sig(Flow.INCOME, TRANSFER, amount(m.group(2)), 0, m.group(1) + "에게서 받음", null,
-                        "수수료 차감 후 실수령")));
+        // ── 기린월드 송금(/pay): 실제 수신/발신 문구, UI 아이콘 및 구형 문구 함께 지원 ──
+        // [송금] <아이콘> PLAYER 님에게 <아이콘> 10쿠키(을) 송금했습니다. (-10쿠키) (수수료: 1)
+        // [송금] <아이콘> PLAYER 님으로부터 <아이콘> 9쿠키(을) 송금받았습니다. (+9쿠키)
+        // 닉네임 및 송금 원금/실수령액을 사용하고 뒤쪽 괄호의 잔액·수수료 금액을 중복 기록하지 않는다.
+        rule("^(?:\\[송금\\].*?)?([A-Za-z0-9_]{2,16})\\s*(?:님)?에게\\s*[^0-9]*" + AMT
+                        + "\\s*쿠키(?:을|\\(을\\)(?:를)?)\\s*송금했습니다\\.",
+                m -> one(sig(Flow.TRANSFER_OUT, TRANSFER, amount(m.group(2)), 0,
+                        m.group(1) + "에게 송금", null, null)));
+        rule("^(?:\\[송금\\].*?)?([A-Za-z0-9_]{2,16})\\s*(?:님으로부터|에게서)\\s*[^0-9]*" + AMT
+                        + "\\s*쿠키(?:을|\\(을\\)(?:를)?)\\s*(?:송금받았습니다|받았습니다)\\.",
+                m -> one(sig(Flow.TRANSFER_IN, TRANSFER, amount(m.group(2)), 0,
+                        m.group(1) + "에게서 받음", null, "수수료 차감 후 실수령")));
 
         // ── 플리마켓(내 상점) ──
         // 남이 내 판매 상점에서 삼 → 수입
