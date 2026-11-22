@@ -1,0 +1,37 @@
+name: Publish Yoondding 0.3.3
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-yoondding-0.3.3.yml'
+permissions:
+  contents: write
+concurrency:
+  group: yoondding-release-0.3.3
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release file
+        run: |
+          echo '711ef201edefc38722b4b831a4f3ec3b3df14357a3ed39ae8d6d0aa0376df493  mods/releases/yoondding-fabric-0.3.3.jar' | sha256sum -c -
+          python3 - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile("mods/releases/yoondding-fabric-0.3.3.jar") as z:
+              assert z.testzip() is None
+              assert json.loads(z.read("fabric.mod.json"))["version"] == "0.3.3"
+              assert "version=0.3.3" in z.read("META-INF/nakin-update.properties").decode().splitlines()
+          PY
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=yoondding-v0.3.3
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --draft --title "윤띵 0.3.3" --notes-file RELEASE_NOTES_YOONDDING_0.3.3.md
+          fi
+          gh release upload "$TAG" mods/releases/yoondding-fabric-0.3.3.jar --clobber
+          gh release edit "$TAG" --draft=false --latest=false --title "윤띵 0.3.3" --notes-file RELEASE_NOTES_YOONDDING_0.3.3.md
