@@ -67,7 +67,7 @@ public final class GirinCurrencyCheck {
         var transferParser=CurrencyParser.createDefault();
         var received=one(transferParser,"[송금] 🐻 YEON1223 님으로부터 💬9쿠키(을) 송금받았습니다. (+9쿠키)",now+20000);
         check(received.amount==9 && received.flow==TradeSignal.Flow.TRANSFER_IN,"incoming transfer must exclude profit");
-        var sent=one(transferParser,"[송금] 🐻 YEON1223 님에게 💬10쿠키(을) 송금했습니다. (-10쿠키) (수수료: 1)",now+20001);
+        var sent=one(transferParser,"[송금] 🐻 YEON1223 님에게 💬10쿠키(을)를 송금했습니다. (-10쿠키) (수수료: 1)",now+20001);
         check(sent.amount==10 && sent.flow==TradeSignal.Flow.TRANSFER_OUT,"outgoing transfer must exclude profit");
         var transfers=new TransferClassifier(cfg);
         var inRecord=transfers.classify(received,TransferClassifier.CrossCheck.NONE,now+20002);
