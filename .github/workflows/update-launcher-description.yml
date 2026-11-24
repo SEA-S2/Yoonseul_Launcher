@@ -1,0 +1,18 @@
+name: Update launcher description
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-launcher-description.yml'
+      - 'docs/launcher-v2.7.2-description.md'
+permissions:
+  contents: write
+jobs:
+  update-description:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update existing launcher release description
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit v2.7.2 --notes-file docs/launcher-v2.7.2-description.md
